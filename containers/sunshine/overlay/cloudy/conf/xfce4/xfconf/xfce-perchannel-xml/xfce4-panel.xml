@@ -32,6 +32,9 @@
 
         <!-- Steam -->
         <value type="int" value="9"/>
+        
+        <!-- Heroic Games Launcher -->
+        <value type="int" value="7"/>
 
         <!-- Separator -->
         <value type="int" value="98"/>
@@ -43,7 +46,6 @@
         <value type="int" value="99"/>
 
         <!-- Help and Exit session -->
-        <value type="int" value="6"/>
         <value type="int" value="5"/>
 
       </property>
@@ -73,6 +75,13 @@
         <value type="string" value="steam.desktop"/>
       </property>
     </property>
+    
+    <!-- Heroic Games Launcher -->
+    <property name="plugin-7" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="heroic.desktop"/>
+      </property>
+    </property>
 
     <property name="plugin-98" type="string" value="separator"/>
     <property name="plugin-99" type="string" value="separator"/>
@@ -83,11 +92,6 @@
       </property>
     </property>
     
-    <property name="plugin-6" type="string" value="launcher">
-      <property name="items" type="array">
-        <value type="string" value="help.desktop"/>
-      </property>
-    </property>
 
   </property>
 </channel>

@@ -122,6 +122,21 @@ RUN --mount=type=cache,target=/var/cache --mount=type=tmpfs,target=/var/log \
     rm steam.deb
 
 #
+# Heroic Games Launcher
+#
+RUN --mount=type=cache,target=/var/cache --mount=type=tmpfs,target=/var/log \
+    apt update && \
+    apt install -y wget && \
+    mkdir -p /tmp/heroic && \
+    cd /tmp/heroic && \
+    LATEST_RELEASE=$(curl -s https://api.github.com/repos/Heroic-Games-Launcher/HeroicGamesLauncher/releases/latest) && \
+    DEB_URL=$(echo "$LATEST_RELEASE" | grep "browser_download_url.*deb" | cut -d : -f 2,3 | tr -d \" | head -n 1) && \
+    wget -q "$DEB_URL" && \
+    apt install -y ./heroic*.deb || apt-get install -f -y && \
+    cd - && \
+    rm -rf /tmp/heroic
+
+#
 # Desktop
 #
 # Install xfce4 desktop environment
@@ -143,29 +158,6 @@ RUN --mount=type=cache,target=/var/cache --mount=type=tmpfs,target=/var/log \
     apt install -y locales && \
     locale-gen en_US.UTF-8 && \
     update-locale LANG=en_US.UTF-8
-
-# Install Firefox as apt package (not snap)
-# Need to explicitely avoid snap by using Firefox PPA and prioritising non-snap version
-# See https://askubuntu.com/a/1404401
-# TODO as single RUN
-RUN --mount=type=cache,target=/var/cache --mount=type=tmpfs,target=/var/log \
-    apt update && \
-    apt install -y software-properties-common && \
-    apt clean && \
-    add-apt-repository ppa:mozillateam/ppa
-
-RUN echo "\
-Package: * \n\
-Pin: release o=LP-PPA-mozillateam \n\
-Pin-Priority: 1001 \n\
-\n\
-Package: firefox \n\
-Pin: version 1:1snap* \n\
-Pin-Priority: -1" | tee /etc/apt/preferences.d/mozilla-firefox
-
-RUN apt update && \
-    apt install -y firefox && \
-    apt clean
 
 # Use this display by default, should not conflict with other displays
 ENV DISPLAY=":42"
