@@ -126,13 +126,12 @@ RUN --mount=type=cache,target=/var/cache --mount=type=tmpfs,target=/var/log \
 #
 RUN --mount=type=cache,target=/var/cache --mount=type=tmpfs,target=/var/log \
     apt update && \
-    apt install -y wget && \
     mkdir -p /tmp/heroic && \
     cd /tmp/heroic && \
     LATEST_RELEASE=$(curl -s https://api.github.com/repos/Heroic-Games-Launcher/HeroicGamesLauncher/releases/latest) && \
     DEB_URL=$(echo "$LATEST_RELEASE" | grep "browser_download_url.*deb" | cut -d : -f 2,3 | tr -d \" | head -n 1) && \
-    wget -q "$DEB_URL" && \
-    apt install -y ./heroic*.deb || apt-get install -f -y && \
+    curl -L -o heroic.deb "$DEB_URL" && \
+    apt install -y ./heroic.deb && \
     cd - && \
     rm -rf /tmp/heroic
 
