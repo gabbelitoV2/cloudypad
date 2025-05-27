@@ -12,9 +12,18 @@
       <property name="show-device-removable" type="bool" value="false"/>
       <property name="show-unknown-removable" type="bool" value="false"/>
     </property>
+    <!-- Inaktivera högerklicksmenyn -->
+    <property name="show-menus" type="bool" value="false"/>
   </property>
   <property name="last" type="empty">
     <property name="window-width" type="int" value="621"/>
     <property name="window-height" type="int" value="631"/>
+  </property>
+  <!-- Inaktivera klickbar bakgrund -->
+  <property name="windowlist-menu" type="empty">
+    <property name="show" type="bool" value="false"/>
+  </property>
+  <property name="context-menu" type="empty">
+    <property name="show" type="bool" value="false"/>
   </property>
 </channel>
