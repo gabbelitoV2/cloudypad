@@ -136,9 +136,7 @@ RUN --mount=type=cache,target=/var/cache --mount=type=tmpfs,target=/var/log \
     rm -rf /tmp/heroic
 
 # Create Sunshine images directory and download icons
-RUN mkdir -p /cloudy/conf/sunshine/images && \
-    curl -L -o /cloudy/conf/sunshine/images/heroic.png "https://raw.githubusercontent.com/Heroic-Games-Launcher/HeroicGamesLauncher/main/public/icon.png" && \
-    chmod 644 /cloudy/conf/sunshine/images/*.png
+RUN curl -L -o /usr/share/sunshine/heroic.png "https://raw.githubusercontent.com/Heroic-Games-Launcher/HeroicGamesLauncher/main/public/icon.png"
 
 #
 # Desktop
@@ -216,6 +214,9 @@ RUN echo "cloudy ALL=(ALL) NOPASSWD: ${CLOUDYPAD_BIN_DIR}/stop-supervisord.sh" >
 
 # Contain various Cloudy Pad scripts, add to PATH for easier use
 ENV PATH=$PATH:/cloudy/bin
+
+# Set executable permissions on all scripts in /cloudy/bin/
+RUN chmod +x /cloudy/bin/*.sh
 
 RUN chown -R cloudy:cloudy /cloudy
 
