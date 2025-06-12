@@ -5,10 +5,11 @@ import { AbstractInputPrompter, PromptOptions } from "../../cli/prompter";
 import { ScalewayClient } from "../../tools/scaleway";
 import { CLOUDYPAD_PROVIDER_SCALEWAY } from "../../core/const";
 import { PartialDeep } from "type-fest";
-import { CLI_OPTION_AUTO_STOP_TIMEOUT, CLI_OPTION_AUTO_STOP_ENABLE, CLI_OPTION_STREAMING_SERVER, CLI_OPTION_SUNSHINE_IMAGE_REGISTRY, CLI_OPTION_SUNSHINE_IMAGE_TAG, CLI_OPTION_SUNSHINE_PASSWORD, CLI_OPTION_SUNSHINE_USERNAME, CliCommandGenerator, CreateCliArgs, UpdateCliArgs, CLI_OPTION_DISK_SIZE, CLI_OPTION_USE_LOCALE, CLI_OPTION_KEYBOARD_LAYOUT, CLI_OPTION_KEYBOARD_MODEL, CLI_OPTION_KEYBOARD_VARIANT, CLI_OPTION_KEYBOARD_OPTIONS, CLI_OPTION_DATA_DISK_SIZE, CLI_OPTION_ROOT_DISK_SIZE, BuildCreateCommandArgs, BuildUpdateCommandArgs } from "../../cli/command";
+import { CLI_OPTION_AUTO_STOP_TIMEOUT, CLI_OPTION_AUTO_STOP_ENABLE, CLI_OPTION_STREAMING_SERVER, CLI_OPTION_SUNSHINE_IMAGE_REGISTRY, CLI_OPTION_SUNSHINE_IMAGE_TAG, CLI_OPTION_SUNSHINE_PASSWORD, CLI_OPTION_SUNSHINE_USERNAME, CliCommandGenerator, CreateCliArgs, UpdateCliArgs, CLI_OPTION_DISK_SIZE, CLI_OPTION_USE_LOCALE, CLI_OPTION_KEYBOARD_LAYOUT, CLI_OPTION_KEYBOARD_MODEL, CLI_OPTION_KEYBOARD_VARIANT, CLI_OPTION_KEYBOARD_OPTIONS, CLI_OPTION_DATA_DISK_SIZE, CLI_OPTION_ROOT_DISK_SIZE, BuildCreateCommandArgs, BuildUpdateCommandArgs, CLI_OPTION_DELETE_INSTANCE_SERVER_ON_STOP } from "../../cli/command";
 import { InteractiveInstanceInitializer } from "../../cli/initializer";
 import { RUN_COMMAND_CREATE, RUN_COMMAND_UPDATE } from "../../tools/analytics/events";
 import { InteractiveInstanceUpdater } from "../../cli/updater";
+import { ScalewayProviderClient } from "./provider";
 
 export interface ScalewayCreateCliArgs extends CreateCliArgs {
     projectId?: string
@@ -18,6 +19,7 @@ export interface ScalewayCreateCliArgs extends CreateCliArgs {
     rootDiskSize?: number
     imageId?: string
     dataDiskSize?: number
+    deleteInstanceServerOnStop?: boolean
 }
 
 export type ScalewayUpdateCliArgs = UpdateCliArgs & Omit<ScalewayCreateCliArgs, "projectId" | "zone" | "region" | "volumeType" >
@@ -35,6 +37,7 @@ export class ScalewayInputPrompter extends AbstractInputPrompter<ScalewayCreateC
                 diskSizeGb: cliArgs.rootDiskSize,
                 imageId: cliArgs.imageId,
                 dataDiskSizeGb: cliArgs.dataDiskSize,
+                deleteInstanceServerOnStop: cliArgs.deleteInstanceServerOnStop
             }
         }
     }
@@ -74,7 +77,8 @@ export class ScalewayInputPrompter extends AbstractInputPrompter<ScalewayCreateC
                 instanceType: instanceType,
                 diskSizeGb: rootDiskSizeGb,
                 dataDiskSizeGb: dataDiskSizeGb,
-                imageId: partialInput.provision?.imageId
+                imageId: partialInput.provision?.imageId,
+                deleteInstanceServerOnStop: partialInput.provision?.deleteInstanceServerOnStop
             }
         }
         
@@ -220,6 +224,7 @@ export class ScalewayCliCommandGenerator extends CliCommandGenerator {
             .addOption(CLI_OPTION_KEYBOARD_MODEL)
             .addOption(CLI_OPTION_KEYBOARD_VARIANT)
             .addOption(CLI_OPTION_KEYBOARD_OPTIONS)
+            .addOption(CLI_OPTION_DELETE_INSTANCE_SERVER_ON_STOP)
             .option('--region <region>', 'Region in which to deploy instance')
             .option('--zone <zone>', 'Zone in which to deploy instance')
             .option('--project-id <projectid>', 'Project ID in which to deploy resources')
@@ -229,12 +234,15 @@ export class ScalewayCliCommandGenerator extends CliCommandGenerator {
                 this.analytics.sendEvent(RUN_COMMAND_CREATE, { provider: CLOUDYPAD_PROVIDER_SCALEWAY })
 
                 try {
-                    await new InteractiveInstanceInitializer<ScalewayCreateCliArgs, ScalewayProvisionInputV1, CommonConfigurationInputV1>({ 
-                        coreClient: args.coreClient,
-                        inputPrompter: new ScalewayInputPrompter({ coreClient: args.coreClient }),
-                        provider: CLOUDYPAD_PROVIDER_SCALEWAY,
+                    const scalewayProviderClient = new ScalewayProviderClient({ config: args.coreConfig })
+                    const scalewayInstanceInitializer = new InteractiveInstanceInitializer<ScalewayInstanceStateV1, ScalewayCreateCliArgs>({
+                        providerClient: scalewayProviderClient,
+                        inputPrompter: new ScalewayInputPrompter({ coreConfig: args.coreConfig }),
                         initArgs: cliArgs
-                    }).initializeInteractive()
+                    })
+
+                    await scalewayInstanceInitializer.initializeInteractive()
+                    
                     
                 } catch (error) {   
                     throw new Error('Scaleway instance initilization failed', { cause: error })
@@ -257,15 +265,16 @@ export class ScalewayCliCommandGenerator extends CliCommandGenerator {
             .addOption(CLI_OPTION_KEYBOARD_MODEL)
             .addOption(CLI_OPTION_KEYBOARD_VARIANT)
             .addOption(CLI_OPTION_KEYBOARD_OPTIONS)
+            .addOption(CLI_OPTION_DELETE_INSTANCE_SERVER_ON_STOP)
             .option('--instance-type <instance-type>', 'Instance type')
+            .option('--image-id <image-id>', 'Existing image ID for instance server. Disk size must be equal or greater than image size.')
             .action(async (cliArgs: ScalewayUpdateCliArgs) => {
                 this.analytics.sendEvent(RUN_COMMAND_UPDATE, { provider: CLOUDYPAD_PROVIDER_SCALEWAY })
 
                 try {
                     await new InteractiveInstanceUpdater<ScalewayInstanceStateV1, ScalewayUpdateCliArgs>({
-                        coreClient: args.coreClient,
-                        stateParser: new ScalewayStateParser(),
-                        inputPrompter: new ScalewayInputPrompter({ coreClient: args.coreClient }),
+                        providerClient: new ScalewayProviderClient({ config: args.coreConfig }),
+                        inputPrompter: new ScalewayInputPrompter({ coreConfig: args.coreConfig }),
                     }).updateInteractive(cliArgs)
                     
                     console.info(`Updated instance ${cliArgs.name}`)

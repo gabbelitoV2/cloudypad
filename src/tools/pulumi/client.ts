@@ -15,7 +15,7 @@ const LOG_ON_OUTPUT_COLOR = "always"
 /**
  * An abstract Pulumi client for a Cloudy Pad instance
  */
-export abstract class InstancePulumiClient<ConfigType, OutputType> {
+export abstract class InstancePulumiClient<ConfigType extends Object, OutputType> {
 
     readonly program: PulumiFn
     readonly projectName: string
@@ -39,6 +39,27 @@ export abstract class InstancePulumiClient<ConfigType, OutputType> {
         return this.stack
     }
 
+    public async getOutputs(): Promise<OutputType> {
+        const stack = await this.getStack()
+        const outputs = await stack.outputs()
+        return this.buildTypedOutput(outputs)
+    }
+
+    async refresh(): Promise<OutputType> {
+        const stack = await this.getStack()
+
+        this.logger.debug(`Refreshing stack ${this.stackName}`)
+
+        const result = await stack.refresh({
+            onOutput: this.stackLogOnOutput,
+            color: LOG_ON_OUTPUT_COLOR,
+        })
+
+        this.logger.debug(`Refresh result: ${JSON.stringify(result)}`)
+
+        return this.getOutputs()
+    }
+
     public async setConfig(config: ConfigType): Promise<void> {
         // wrap call around this side-effect call to easily stub during test
         await this.doSetConfig(config)
@@ -55,6 +76,13 @@ export abstract class InstancePulumiClient<ConfigType, OutputType> {
             throw new Error(`Stack ${this.stackName} for project ${this.projectName} has already been initialized. This is probably an internal bug.`)
         }
 
+        // ensure local backend exists for file backend
+        const backendUrl = this.workspaceOptions?.envVars?.PULUMI_BACKEND_URL ?? this.workspaceOptions?.projectSettings?.backend?.url
+        if(backendUrl?.startsWith("file://")) {
+            const backendUrlPath = backendUrl.replace("file://", "")
+            fs.mkdirSync(backendUrlPath, { recursive: true })
+        }
+
         const workpaceOpts: LocalWorkspaceOptions | undefined = this.workspaceOptions
 
         const pulumiArgs: InlineProgramArgs = {
@@ -67,7 +95,7 @@ export abstract class InstancePulumiClient<ConfigType, OutputType> {
         return stack
     }
 
-    async up(){
+    async up(): Promise<OutputType>{
 
         try {
 

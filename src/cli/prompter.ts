@@ -8,7 +8,8 @@ import { getLogger } from "../log/utils";
 import { PUBLIC_IP_TYPE, PUBLIC_IP_TYPE_DYNAMIC, PUBLIC_IP_TYPE_STATIC } from '../core/const';
 import { CreateCliArgs } from './command';
 import { CostAlertOptions } from '../core/provisioner';
-import { CloudypadClient } from '../core/client';
+import { CoreConfig } from '../core/config/interface';
+import { StateManagerBuilder } from '../core/state/builders';
 
 const { kebabCase } = lodash
 
@@ -40,7 +41,7 @@ export interface PromptOptions {
 }
 
 export interface AbstractInputPrompterArgs {
-    coreClient: CloudypadClient
+    coreConfig: CoreConfig
 }
 
 /**
@@ -88,8 +89,8 @@ export abstract class AbstractInputPrompter<
         
         const instanceName = await this.instanceName(partialInput.instanceName)
         
-        const loader = this.args.coreClient.buildStateLoader()
-        const alreadyExists = await loader.instanceExists(instanceName)
+        const stateLoader = new StateManagerBuilder(this.args.coreConfig).buildStateLoader()
+        const alreadyExists = await stateLoader.instanceExists(instanceName)
         if(alreadyExists){
             const overwriteExisting = await this.promptOverwriteExisting(instanceName, createOptions?.overwriteExisting)
             if(!overwriteExisting) {
@@ -137,6 +138,7 @@ export abstract class AbstractInputPrompter<
                 },
                 keyboard: partialInput.configuration?.keyboard,
                 locale: partialInput.configuration?.locale,
+                ansible: partialInput.configuration?.ansible,
             }
         }
 
@@ -183,25 +185,29 @@ export abstract class AbstractInputPrompter<
                     enable: cliArgs.autostop,
                     timeoutSeconds: cliArgs.autostopTimeout,
                 } : undefined,
-                // only set streaming server is provided
-                // setting a streaming server argument without enabling it has not effect
+                // only set streaming server if provided
+                // if undefined, no specific CLI args was passed, leave undefined
+                // to re-use existing state value or prompt user
                 sunshine: cliArgs.streamingServer == STREAMING_SERVER_SUNSHINE ? {
                     enable: true,
                     username: cliArgs.sunshineUser,
                     passwordBase64: cliArgs.sunshinePassword ? Buffer.from(cliArgs.sunshinePassword).toString('base64') : undefined,
                     imageRegistry: cliArgs.sunshineImageRegistry,
                     imageTag: cliArgs.sunshineImageTag,
-                } : null,
+                } : undefined,
                 wolf: cliArgs.streamingServer == STREAMING_SERVER_WOLF ? {
                     enable: true,
-                } : null,
+                } : undefined,
                 locale: cliArgs.useLocale,
                 keyboard: cliArgs.keyboardLayout ? {
                     layout: cliArgs.keyboardLayout,
                     model: cliArgs.keyboardModel,
                     variant: cliArgs.keyboardVariant,
                     options: cliArgs.keyboardOptions,
-                } : undefined
+                } : undefined,
+                ansible: cliArgs.ansibleAdditionalArgs ? {
+                    additionalArgs: cliArgs.ansibleAdditionalArgs,
+                } : undefined,
             }
         }
     }

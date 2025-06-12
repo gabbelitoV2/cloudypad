@@ -1,6 +1,8 @@
 # Development guide
 
 - [Release](#release)
+  - [Before release testing](#before-release-testing)
+  - [Do release](#do-release)
 - [Tests](#tests)
   - [Unit tests](#unit-tests)
   - [Integration tests](#integration-tests)
@@ -9,6 +11,7 @@
     - [Development Virtual Machine](#development-virtual-machine)
   - [Local Pulumi stack manipulation](#local-pulumi-stack-manipulation)
 - [Maintenance](#maintenance)
+- [Regular updates](#regular-updates)
   - [Updating Wolf version](#updating-wolf-version)
 - [Adding a new provider](#adding-a-new-provider)
   - [Provider components](#provider-components)
@@ -17,6 +20,16 @@
 - [Adding new CLI args](#adding-new-cli-args)
 
 ## Release
+
+### Before release testing
+
+Some tests are required before release:
+
+- [ ] `task test-unit` (done by CI)
+- [ ] `task test-integ-full-lifecycle-all` (done manually since it requires real Cloud accounts)
+- [ ] `task test-integ-scaleway-lifecycle-with-server-deletion` (done manually since it requires real Cloud accounts)
+
+### Do release
 
 Set `export GITHUB_TOKEN=xxx` variable and run:
 
@@ -138,6 +151,15 @@ pulumi destroy -s <organization/CloudyPad-XXX/STACK>
 
 
 ## Maintenance
+
+## Regular updates
+
+- [ ] Node deps
+- [ ] NVIDIA driver version `ansible/roles/nvidia-driver/defaults/main.yml` `nvidia_driver_dotrun_install_version`
+- [ ] Wolf version (see below)
+- [ ] Sunshine Dockerfile `containers/sunshine/Dockerfile`
+  - [ ] Base image version `FROM`
+  - [ ] Steam version `CLOUDYPAD_STEAM_VERSION`
 
 ### Updating Wolf version
 

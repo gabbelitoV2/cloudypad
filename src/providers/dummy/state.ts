@@ -17,10 +17,17 @@ const DummyProvisionInputV1Schema = CommonProvisionInputV1Schema.extend({
     provisioningDelaySeconds: z.number().describe("Time (seconds) during which provisioning will run.").default(0).optional(),
     readinessAfterStartDelaySeconds: z.number().describe("Time (seconds) after starting the instance before it is considered ready to accept connections.").default(0).optional(),
     initialServerStateAfterProvision: z.enum(["running", "stopped"]).describe("Initial state of the instance server after provisioning.").default("running").optional(),
+    deleteInstanceServerOnStop: z.boolean().describe("Whether instance server should be deleted on instance stop and re-created on next start").optional(),
 })
 
 const DummyConfigurationOutputV1Schema = CommonConfigurationOutputV1Schema.extend({
     configuredAt: z.number().describe("Timestamp (seconds) the instance was finished configured at"),
+})
+
+const DummyInfrastructureStatusSchema = z.object({
+    serverStatus: z.nativeEnum(ServerRunningStatus),
+    serverId: z.string().optional().describe("Current dummy server id"),
+    lastUpdate: z.number().describe("Timestamp (seconds) the infrastructure was last updated at"),
 })
 
 const DummyInstanceStateV1Schema = InstanceStateV1Schema.extend({
@@ -33,7 +40,9 @@ const DummyInstanceStateV1Schema = InstanceStateV1Schema.extend({
         configurator: z.literal(CLOUDYPAD_CONFIGURATOR_ANSIBLE),
         input: CommonConfigurationInputV1Schema,
         output: DummyConfigurationOutputV1Schema.optional(),
-    })
+    }),
+    dummyInfrastructure: DummyInfrastructureStatusSchema.optional()
+        .describe("Dummy infrastructure status. Updated by the dummy provider to emulate a real infrastructure."),
 })
 
 type DummyInstanceStateV1 = z.infer<typeof DummyInstanceStateV1Schema>
@@ -41,8 +50,10 @@ type DummyProvisionOutputV1 = z.infer<typeof DummyProvisionOutputV1Schema>
 type DummyProvisionInputV1 = z.infer<typeof DummyProvisionInputV1Schema>
 type DummyConfigurationOutputV1 = z.infer<typeof DummyConfigurationOutputV1Schema>
 type DummyInstanceInput = InstanceInputs<DummyProvisionInputV1>
+type DummyInfrastructureStatus = z.infer<typeof DummyInfrastructureStatusSchema>
 
 export {
+    DummyInfrastructureStatusSchema,
     DummyProvisionOutputV1Schema,
     DummyProvisionInputV1Schema,
     DummyConfigurationOutputV1Schema,
@@ -52,6 +63,7 @@ export {
     DummyProvisionInputV1,
     DummyConfigurationOutputV1,
     DummyInstanceInput,
+    DummyInfrastructureStatus,
 }
 
 export class DummyStateParser extends GenericStateParser<DummyInstanceStateV1> {
