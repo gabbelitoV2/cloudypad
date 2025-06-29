@@ -13,6 +13,9 @@
       <property name="show-unknown-removable" type="bool" value="false"/>
     </property>
   </property>
+  <property name="desktop-menu" type="empty">
+    <property name="show" type="bool" value="false"/>
+  </property>
   <property name="last" type="empty">
     <property name="window-width" type="int" value="621"/>
     <property name="window-height" type="int" value="631"/>
