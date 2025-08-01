@@ -25,6 +25,11 @@ FROM download-base AS download-heroic
 ARG HEROIC_VERSION="2.18.0"
 RUN curl -L -o /app/heroic.deb "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v${HEROIC_VERSION}/Heroic-${HEROIC_VERSION}-linux-amd64.deb"
 
+# Prism Launcher
+FROM download-base AS download-prism
+ARG PRISM_VERSION="9.4"
+RUN curl -L -o /app/PrismLauncher-Linux-x86_64.AppImage "https://github.com/PrismLauncher/PrismLauncher/releases/download/${PRISM_VERSION}/PrismLauncher-Linux-x86_64.AppImage"
+
 # 
 # Sunshine image based on Ubuntu 24.04
 # with desktop environment, game launchers and dependencies
@@ -215,6 +220,19 @@ apt install -y /app/heroic.deb
 
 _HEROIC
 
+#
+# Prism Launcher
+#
+RUN --mount=type=bind,from=download-prism,source=/app/PrismLauncher-Linux-x86_64.AppImage,target=/app/PrismLauncher-Linux-x86_64.AppImage <<_PRISM
+
+set -e
+
+# Copy AppImage to /usr/local/bin and make it executable
+cp /app/PrismLauncher-Linux-x86_64.AppImage /usr/local/bin/prismlauncher
+chmod +x /usr/local/bin/prismlauncher
+
+_PRISM
+
 # GE-Proton version that will be installed and configured for Heroic by default
 ENV CLOUDYPAD_HEROIC_DEFAULT_GEPROTON_VERSION="GE-Proton10-10"
 
@@ -276,5 +294,8 @@ RUN echo "cloudy ALL=(ALL) NOPASSWD: ${CLOUDYPAD_BIN_DIR}/stop-supervisord.sh" >
 ENV PATH=$PATH:/cloudy/bin
 
 RUN chown -R cloudy:cloudy /cloudy
+
+# Make all scripts executable
+RUN chmod +x /cloudy/bin/*.sh
 
 ENTRYPOINT [ "/cloudy/entrypoint.sh" ]

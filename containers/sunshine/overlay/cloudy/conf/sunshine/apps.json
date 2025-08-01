@@ -89,6 +89,24 @@
             "wait-all": "true",
             "exit-timeout": "5",
             "cmd": ""
+        },
+        {
+            "name": "Prism Launcher",
+            "image-path": "$(XDG_CONFIG_HOME)/sunshine/assets/prism.png",
+            "prep-cmd": [
+                {
+                    "do": "sh -c \"sunshine-app-startup.sh > \/tmp\/sunshine-session-start.log 2>&1\"",
+                    "undo": "sh -c \"prism-stop.sh > \/tmp\/prism-stop.log 2>&1\""
+                }
+            ],
+            "detached": [
+                "sh -c \"prism-start.sh > \/tmp\/prism-start.log 2>&1\""
+            ],
+            "exclude-global-prep-cmd": "false",
+            "auto-detach": "true",
+            "wait-all": "true",
+            "exit-timeout": "5",
+            "cmd": ""
         }
     ]
 }

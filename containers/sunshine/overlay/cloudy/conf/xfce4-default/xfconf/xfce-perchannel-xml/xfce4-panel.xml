@@ -39,6 +39,9 @@
         <!-- Lutris -->
         <value type="int" value="12"/>
 
+        <!-- Prism Launcher -->
+        <value type="int" value="13"/>
+
         <!-- Separator -->
         <value type="int" value="98"/>
 
@@ -48,8 +51,7 @@
 
         <value type="int" value="99"/>
 
-        <!-- Help and Exit session -->
-        <value type="int" value="6"/>
+        <!-- Exit session -->
         <value type="int" value="5"/>
 
       </property>
@@ -92,6 +94,12 @@
       </property>
     </property>
 
+    <property name="plugin-13" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="prism.desktop"/>
+      </property>
+    </property>
+
     <property name="plugin-98" type="string" value="separator"/>
     <property name="plugin-99" type="string" value="separator"/>
 
@@ -100,12 +108,7 @@
         <value type="string" value="exit.desktop"/>
       </property>
     </property>
-    
-    <property name="plugin-6" type="string" value="launcher">
-      <property name="items" type="array">
-        <value type="string" value="help.desktop"/>
-      </property>
-    </property>
+
 
   </property>
 </channel>
