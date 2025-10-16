@@ -58,7 +58,7 @@ create_push_release_branch() {
   if [ "$CLOUDYPAD_RELEASE_DRY_RUN" = true ]; then
     echo "Dry run enabled: Skipping git push."
   else
-    git push
+    git push --set-upstream origin "$release_branch"
   fi
 }
 
