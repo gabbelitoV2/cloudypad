@@ -28,6 +28,12 @@ FROM download-base AS download-heroic
 ARG HEROIC_VERSION="2.18.1"
 RUN curl -L -o /app/heroic.deb "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v${HEROIC_VERSION}/Heroic-${HEROIC_VERSION}-linux-amd64.deb"
 
+# PrismLauncher
+# https://github.com/PrismLauncher/PrismLauncher/releases
+FROM download-base AS download-prism
+ARG PRISM_VERSION="9.4"
+RUN curl -L -o /app/PrismLauncher.AppImage "https://github.com/PrismLauncher/PrismLauncher/releases/download/${PRISM_VERSION}/PrismLauncher-Linux-x86_64.AppImage"
+
 # 
 # Sunshine image based on Ubuntu 24.04
 # with desktop environment, game launchers and dependencies
@@ -227,6 +233,23 @@ _HEROIC
 
 # GE-Proton version that will be installed and configured for Heroic by default
 ENV CLOUDYPAD_HEROIC_DEFAULT_GEPROTON_VERSION="GE-Proton10-17"
+
+#
+# PrismLauncher (Minecraft)
+#
+RUN --mount=type=cache,target=/var/cache --mount=type=tmpfs,target=/var/log --mount=type=bind,from=download-prism,source=/app/PrismLauncher.AppImage,target=/app/PrismLauncher.AppImage <<_PRISM
+
+set -e
+
+apt update
+# Install Java runtime for Minecraft and FUSE for AppImage
+apt install -y openjdk-21-jre openjdk-17-jre openjdk-8-jre libfuse2
+
+# Copy AppImage to /usr/local/bin and make it executable
+cp /app/PrismLauncher.AppImage /usr/local/bin/prismlauncher
+chmod +x /usr/local/bin/prismlauncher
+
+_PRISM
 
 # 
 # Global environment variables

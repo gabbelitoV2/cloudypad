@@ -17,7 +17,7 @@
             version = cloudypadVersion;
 
             src = pkgs.fetchurl {
-              url = "https://raw.githubusercontent.com/PierreBeucher/cloudypad/v${cloudypadVersion}/cloudypad.sh";
+              url = "https://raw.githubusercontent.com/GabbelitoV2/cloudypad/v${cloudypadVersion}/cloudypad.sh";
               hash = "sha256:12s0vn9hkdwsazg7h5wf2khmkqg8px25k29fs3xb9zc3rk0y1m9n";
             };
 
@@ -29,7 +29,7 @@
 
             meta = with pkgs.lib; {
               description = "Cloudypad script";
-              homepage = "https://github.com/PierreBeucher/cloudypad";
+              homepage = "https://github.com/GabbelitoV2/cloudypad";
               license = licenses.agpl3Plus;
             };
           };
