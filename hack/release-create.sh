@@ -58,7 +58,7 @@ create_push_release_branch() {
   if [ "$CLOUDYPAD_RELEASE_DRY_RUN" = true ]; then
     echo "Dry run enabled: Skipping git push."
   else
-    git push
+    git push --set-upstream origin "$release_branch"
   fi
 }
 
@@ -74,7 +74,7 @@ create_release_pr_and_merge_in_release_branch() {
   echo "Creating release PR..."
 
   npx --yes release-please release-pr \
-      --repo-url https://github.com/PierreBeucher/cloudypad \
+      --repo-url https://github.com/gabbelitoV2/cloudypad \
       --token $GITHUB_TOKEN \
       --target-branch $release_branch
 
@@ -90,7 +90,7 @@ create_release_pr_and_merge_in_release_branch() {
   # Create Git tag and GitHub release
   # Git tag will result in new Docker images being pushed
   npx release-please github-release \
-    --repo-url https://github.com/PierreBeucher/cloudypad \
+    --repo-url https://github.com/gabbelitoV2/cloudypad \
     --token=${GITHUB_TOKEN} \
     --target-branch $release_branch \
     --prerelease
@@ -134,14 +134,14 @@ merge_release_branch_in_master() {
 
     echo "[$(date +%Y-%m-%d-%H:%M:%S)] Release jobs status: $release_jobs_response"
 
-    # filter for jobs with status "in_progress"
-    release_job_status=$(echo "$release_jobs_response" | jq -r '.[] | select(.name == "Release") | .status')
+    # Count jobs that are NOT completed
+    non_completed_jobs=$(echo "$release_jobs_response" | jq '[.[] | select(.name == "Release" and .status != "completed")] | length')
 
-    echo "Release job status: '$release_job_status'"
+    echo "Number of non-completed Release jobs: $non_completed_jobs"
 
-    # If no jobs are running (release_jobs_in_progress is an empty string), break: all release jobs completed
-    if [ "$release_job_status" = "completed" ]; then
-      echo "Release CI job completed for $release_tag"
+    # If all jobs are completed, break
+    if [ "$non_completed_jobs" -eq 0 ]; then
+      echo "All Release CI jobs completed for $release_tag"
       release_jobs_success=true
       break
     else
