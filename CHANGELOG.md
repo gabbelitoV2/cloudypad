@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.41.1](https://github.com/gabbelitoV2/cloudypad/compare/v0.41.0...v0.41.1) (2025-10-17)
+
+
+### Bug Fixes
+
+* set executable permissions on prism-start.sh and prism-stop.sh ([0f92e2d](https://github.com/gabbelitoV2/cloudypad/commit/0f92e2dd243c3f56a4f1f663b32464997f3d189a))
+
 ## [0.41.0](https://github.com/gabbelitoV2/cloudypad/compare/v0.40.0...v0.41.0) (2025-10-17)
 
 
