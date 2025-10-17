@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.41.2](https://github.com/gabbelitoV2/cloudypad/compare/v0.41.1...v0.41.2) (2025-10-17)
+
+
+### Bug Fixes
+
+* remove accidentally committed test file with carriage return in name ([3abef6e](https://github.com/gabbelitoV2/cloudypad/commit/3abef6e76bfe65e0463b93bd0b556f358ad3f334))
+
 ## [0.41.1](https://github.com/gabbelitoV2/cloudypad/compare/v0.41.0...v0.41.1) (2025-10-17)
 
 
