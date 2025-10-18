@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.41.3](https://github.com/gabbelitoV2/cloudypad/compare/v0.41.2...v0.41.3) (2025-10-18)
+
+
+### Bug Fixes
+
+* set executable permissions on setup-prism.sh ([d832472](https://github.com/gabbelitoV2/cloudypad/commit/d832472da1c367521725b3f7b9a1b5cacd73a35d))
+* set executable permissions on setup-prism.sh ([bf1d5f3](https://github.com/gabbelitoV2/cloudypad/commit/bf1d5f37ded8d06a78aba675c8c2532c81342f3b))
+
 ## [0.41.2](https://github.com/gabbelitoV2/cloudypad/compare/v0.41.1...v0.41.2) (2025-10-17)
 
 
