@@ -28,6 +28,12 @@ FROM download-base AS download-heroic
 ARG HEROIC_VERSION="2.18.1"
 RUN curl -L -o /app/heroic.deb "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v${HEROIC_VERSION}/Heroic-${HEROIC_VERSION}-linux-amd64.deb"
 
+# Prism Launcher (Minecraft)
+# https://github.com/PrismLauncher/PrismLauncher/releases
+FROM download-base AS download-prism
+ARG PRISM_VERSION="10.0.2"
+RUN curl -L -o /app/PrismLauncher-Linux-x86_64.AppImage "https://github.com/PrismLauncher/PrismLauncher/releases/download/${PRISM_VERSION}/PrismLauncher-Linux-x86_64.AppImage"
+
 # 
 # Sunshine image based on Ubuntu 24.04
 # with desktop environment, game launchers and dependencies
@@ -227,6 +233,43 @@ _HEROIC
 
 # GE-Proton version that will be installed and configured for Heroic by default
 ENV CLOUDYPAD_HEROIC_DEFAULT_GEPROTON_VERSION="GE-Proton10-17"
+
+#
+# Prism Launcher (Minecraft)
+#
+RUN --mount=type=cache,target=/var/cache --mount=type=tmpfs,target=/var/log --mount=type=bind,from=download-prism,source=/app,target=/app <<_PRISM
+
+set -e
+
+# Install dependencies for Prism Launcher
+apt update
+apt install -y openjdk-21-jre libqt6core6 libqt6widgets6 libqt6gui6 libqt6network6 libqt6xml6
+
+# Extract AppImage 
+cd /opt
+cp /app/PrismLauncher-Linux-x86_64.AppImage .
+chmod +x PrismLauncher-Linux-x86_64.AppImage
+./PrismLauncher-Linux-x86_64.AppImage --appimage-extract
+mv squashfs-root prismlauncher
+rm PrismLauncher-Linux-x86_64.AppImage
+
+# Create symlink for easy access
+ln -s /opt/prismlauncher/AppRun /usr/local/bin/prismlauncher
+
+# Install icon to system icon theme in multiple sizes
+for size in 16 32 48 64 128 256 512; do
+    mkdir -p /usr/share/icons/hicolor/${size}x${size}/apps
+    cp /opt/prismlauncher/org.prismlauncher.PrismLauncher.png /usr/share/icons/hicolor/${size}x${size}/apps/prismlauncher.png
+done
+
+# Install desktop file to system applications
+cp /opt/prismlauncher/org.prismlauncher.PrismLauncher.desktop /usr/share/applications/prismlauncher.desktop
+sed -i 's|Exec=.*|Exec=prismlauncher|g' /usr/share/applications/prismlauncher.desktop
+sed -i 's|Icon=.*|Icon=prismlauncher|g' /usr/share/applications/prismlauncher.desktop
+
+apt clean
+
+_PRISM
 
 # 
 # Global environment variables
