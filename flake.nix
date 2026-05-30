@@ -2,13 +2,14 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    novops.url = "github:PierreBeucher/novops";
   };
 
-  outputs = { self, nixpkgs, flake-utils }: 
+  outputs = { self, nixpkgs, flake-utils, novops }: 
     flake-utils.lib.eachDefaultSystem (system:
       let  
         pkgs = import nixpkgs { system = system; config.allowUnfree = true; };
-        cloudypadVersion = "0.41.0";
+        cloudypadVersion = "0.45.3";
       in {
         packages = rec {
           default = cloudypad;
@@ -17,8 +18,8 @@
             version = cloudypadVersion;
 
             src = pkgs.fetchurl {
-              url = "https://raw.githubusercontent.com/PierreBeucher/cloudypad/v${cloudypadVersion}/cloudypad.sh";
-              hash = "sha256:0g2574dg04vjybwmkdzmjqvrq65xjfdhyfgp7kdlz34qn02wj20h";
+              url = "https://raw.githubusercontent.com/gabbelitoV2/cloudypad/v${cloudypadVersion}/cloudypad.sh";
+              hash = "sha256:1rs6jvx8k4l5jshniw672nf9c0475wjc17xfwasv49d55yl6922f";
             };
 
             phases = [ "installPhase" ];
@@ -33,35 +34,39 @@
               license = licenses.agpl3Plus;
             };
           };
-          
+          novops = novops.packages.${system}.novops;
         };
         devShells = {
           default = pkgs.mkShell {
-            packages = with pkgs; [
-              gnumake
-              pulumi-bin
-              pulumiPackages.pulumi-nodejs
-              nodejs_22
-              go-task
-              gettext
-              typescript
-              podman
-              podman-compose
-              ansible
-              sshpass # for Ansible password auth
-              yq
-              jq
-              gh
-              mdbook
-              pv # for demo-magic
-              asciinema
-              imagemagick_light
-              ffmpeg
-              vagrant
-              scaleway-cli
-              bc
-              linode-cli
-              google-cloud-sdk
+            packages = [
+              (with pkgs; [
+                gnumake
+                pulumi-bin
+                pulumiPackages.pulumi-nodejs
+                nodejs_22
+                go-task
+                gettext
+                typescript
+                podman
+                podman-compose
+                ansible
+                sshpass # for Ansible password auth
+                yq
+                jq
+                gh
+                mdbook
+                pv # for demo-magic
+                asciinema
+                imagemagick_light
+                ffmpeg
+                vagrant
+                scaleway-cli
+                bc
+                linode-cli
+                google-cloud-sdk
+                pnpm
+              ])
+              novops.packages.${system}.novops
             ];
             
             shellHook = ''
@@ -71,14 +76,19 @@
 
               export CLOUDYPAD_HOME="$PWD/test/integ/.data-root-dir"
 
-              export PAPERSPACE_API_KEY=$(cat $PWD/tmp/paperspace_api_key)
-              export LINODE_TOKEN=$(cat $PWD/tmp/linode_token)
-
               export CLOUDYPAD_KEYBOARD_LAYOUT_AUTODETECT_SKIP_WAYLAND_WARNING=true
 
               # Force NODE_ENV as Cursor seems to set it to production
               # See https://forum.cursor.com/t/agent-shell-set-node-env-to-production/134489
               export NODE_ENV=development
+
+              # Force max old space size to 8GB for Node.js as compilation is very memory intensive
+              export NODE_OPTIONS="--max-old-space-size=8912"
+              
+              # Debug alias
+              alias cloudypad="npx tsx src/cli/main.ts"
+
+              source <(novops load -e dev)
             '';
           };
         };

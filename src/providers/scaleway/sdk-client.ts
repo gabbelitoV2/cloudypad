@@ -1,5 +1,5 @@
 import { getLogger, Logger } from '../../log/utils'
-import { createClient, Instance, Vpc, Account, Marketplace, Profile } from '@scaleway/sdk'
+import { createClient, Instance, Vpc, Account, Marketplace, Profile, Block, Domain } from '@scaleway/sdk'
 import { loadProfileFromConfigurationFile } from '@scaleway/configuration-loader'
 
 interface StartStopActionOpts {
@@ -124,6 +124,8 @@ export class ScalewayClient {
     private readonly instanceClient: Instance.v1.API
     private readonly accountProjectClient: Account.v3.ProjectAPI
     private readonly marketplaceClient: Marketplace.v2.API
+    private readonly blockClient: Block.v1alpha1.API
+    private readonly domainClient: Domain.v2beta1.API
 
     constructor(name: string, args: ScalewayClientArgs) {
         const profile = ScalewayClient.loadProfileFromConfigurationFile()
@@ -137,6 +139,8 @@ export class ScalewayClient {
         this.instanceClient = new Instance.v1.API(client)
         this.accountProjectClient = new Account.v3.ProjectAPI(client)
         this.marketplaceClient = new Marketplace.v2.API(client)
+        this.blockClient = new Block.v1alpha1.API(client)
+        this.domainClient = new Domain.v2beta1.API(client)
     }
 
     async listInstances(): Promise<ScalewayVMDetails[]> {
@@ -297,6 +301,42 @@ export class ScalewayClient {
         }
     }
 
+    /**
+     * Get a block volume by volume ID
+     * @param args Object with zone and volumeId
+     * @returns Volume if exists, null otherwise
+     */
+    async getVolume(args: { zone: string, volumeId: string }): Promise<Block.v1alpha1.Volume | null> {
+        this.logger.debug(`Getting volume ${args.volumeId} in zone ${args.zone}`)
+        try {
+            const response = await this.blockClient.getVolume({ volumeId: args.volumeId, zone: args.zone as any })
+            return (response as any).volume ?? response ?? null
+        } catch (error: any) {
+            if (error?.statusCode === 404) {
+                return null
+            }
+            throw new Error(`Failed to get volume ${args.volumeId}`, { cause: error })
+        }
+    }
+
+    /**
+     * Get an instance image by image ID
+     * @param args Object with zone and imageId
+     * @returns Image if exists, null otherwise
+     */
+    async getImage(args: { zone: string, imageId: string }): Promise<Instance.v1.Image | null> {
+        this.logger.debug(`Getting image ${args.imageId} in zone ${args.zone}`)
+        try {
+            const response = await this.instanceClient.getImage({ imageId: args.imageId, zone: args.zone as any })
+            return response.image || null
+        } catch (error: any) {
+            if (error?.statusCode === 404) {
+                return null
+            }
+            throw new Error(`Failed to get image ${args.imageId}`, { cause: error })
+        }
+    }
+
     private async withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
         if (!timeoutMs) {
             return promise
@@ -317,6 +357,28 @@ export class ScalewayClient {
                     reject(error)
                 })
         })
+    }
+
+    /**
+     * List all DNS records for a given zone.
+     * @param dnsZone Full DNS zone name, e.g. "test-core.cloudypad.gg"
+     * @returns All DNS records in the zone
+     */
+    async listDnsZoneRecords(dnsZone: string): Promise<Domain.v2beta1.DomainRecord[]> {
+        this.logger.debug(`Listing DNS zone records for zone '${dnsZone}'`)
+        const response = await this.domainClient.listDNSZoneRecords({ dnsZone, name: "" })
+        return response.records
+    }
+
+    /**
+     * List nameservers for a given DNS zone.
+     * @param dnsZone Full DNS zone name, e.g. "test-core.cloudypad.gg"
+     * @returns List of nameservers for the zone
+     */
+    async listDnsZoneNameservers(dnsZone: string): Promise<Domain.v2beta1.Nameserver[]> {
+        this.logger.debug(`Listing DNS zone nameservers for zone '${dnsZone}'`)
+        const response = await this.domainClient.listDNSZoneNameservers({ dnsZone })
+        return response.ns
     }
     
 }

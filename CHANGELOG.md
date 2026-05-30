@@ -1,5 +1,89 @@
 # Changelog
 
+## [0.45.2](https://github.com/PierreBeucher/cloudypad/compare/v0.45.1...v0.45.2) (2026-05-10)
+
+
+### Bug Fixes
+
+* nvidia devices permissions in container ([d409d83](https://github.com/PierreBeucher/cloudypad/commit/d409d8336dbf7a272b36ea1b8cd2357cdc96d255))
+* nvidia devices permissions in container ([c4c32e0](https://github.com/PierreBeucher/cloudypad/commit/c4c32e0169605be74c931187fc21d26aac8ffd77))
+
+## [0.45.1](https://github.com/PierreBeucher/cloudypad/compare/v0.45.0...v0.45.1) (2026-05-03)
+
+
+### Bug Fixes
+
+* move PNPM_HOME to /usr/local/share/pnpm so non-root users can execute cloudypad ([7eddc88](https://github.com/PierreBeucher/cloudypad/commit/7eddc885c62fb943ce6115c65135a1cabdc4c363))
+
+## [0.45.0](https://github.com/PierreBeucher/cloudypad/compare/v0.44.0...v0.45.0) (2026-04-26)
+
+
+### Features
+
+* auto-generate Sunshine Web UI password if none provided ([6bb98cc](https://github.com/PierreBeucher/cloudypad/commit/6bb98ccdcc9b3418350ed65f96a7b685478fd75e))
+* **aws:** add --create-vpc option to provision a dedicated VPC ([c39428e](https://github.com/PierreBeucher/cloudypad/commit/c39428e327b9de9ff76dea3a8c20030863cd2b7a))
+* **aws:** add --create-vpc option to provision a dedicated VPC ([b9b5367](https://github.com/PierreBeucher/cloudypad/commit/b9b53679a82eacb3ffacd9f07124c93c30ec4b2f))
+* **aws:** enable IPv6 for created VPC ([9fe52e5](https://github.com/PierreBeucher/cloudypad/commit/9fe52e5a9d2adf67c7d639e29c3cc8a5e5abf165))
+* bump NVIDIA driver and container toolkit version ([25757ad](https://github.com/PierreBeucher/cloudypad/commit/25757adcad5aa5d6dcbbb3f5b8fdfa15e16c9f30))
+* bump to Proton 10 by default ([1f1050b](https://github.com/PierreBeucher/cloudypad/commit/1f1050b91cd40687e7fd1ac243fbb4137644df08))
+* log message before base image snapshot creation ([19d3e4e](https://github.com/PierreBeucher/cloudypad/commit/19d3e4e028358dc3a810d7120dfffe565058d463))
+* log message before base image snapshot creation ([f3b61b3](https://github.com/PierreBeucher/cloudypad/commit/f3b61b3d71b434bb9cc4103b781c99a836011779))
+* Scaleway DNS record management ([769ddb4](https://github.com/PierreBeucher/cloudypad/commit/769ddb472516c8819395433997f615b24200aee4))
+* **sunshine:** add screenshotter ([0c09a3f](https://github.com/PierreBeucher/cloudypad/commit/0c09a3fa1deed6e85d9ec89577a4c8db89e0bd3c))
+
+
+### Bug Fixes
+
+* Linode disk not being mounted on machine as per missing var in Ansible playbook ([9be60f5](https://github.com/PierreBeucher/cloudypad/commit/9be60f564fe94997b37fc65b56d4f1a8124f399f))
+* missing Lutris icon ([77124d9](https://github.com/PierreBeucher/cloudypad/commit/77124d9f5119f1f0e8f991d15d92a309e93d29d9))
+* show actual instance name in destroy hint on create failure ([5d48265](https://github.com/PierreBeucher/cloudypad/commit/5d482655a0dc389c9dc2417e5fcb69dc7b76ba16))
+* show actual instance name in destroy hint on create failure ([f8d4621](https://github.com/PierreBeucher/cloudypad/commit/f8d462108db361c0073d9073bc4ffc3bbdfe1e83))
+* stop logging generated sunshine password ([66c1c76](https://github.com/PierreBeucher/cloudypad/commit/66c1c7627fefc4a90f6d49f69ea90d141dd857db))
+* use hostname rather than public IP for pairing to ensure Moonlight config remains stable across reboot when DNS config is used ([8b639d1](https://github.com/PierreBeucher/cloudypad/commit/8b639d1e0d12baa7e75eedd15bf85bc03169671f))
+
+## [0.44.0](https://github.com/PierreBeucher/cloudypad/compare/v0.43.0...v0.44.0) (2026-03-11)
+
+
+### Features
+
+* add --ansible-args-override option to create and start command ([67292ab](https://github.com/PierreBeucher/cloudypad/commit/67292abb891bfad305b6b0342d06c532466ce736))
+* add deploy/configure --ansible-args-override override ([f72bc3c](https://github.com/PierreBeucher/cloudypad/commit/f72bc3c96b1f878dd4476a28a2cd5730c1b2ff09))
+* add Linode custom labels ([fbb1047](https://github.com/PierreBeucher/cloudypad/commit/fbb104775229346734ffe702b49dde0cc9b64783))
+* support data disk resize ([ac05cfe](https://github.com/PierreBeucher/cloudypad/commit/ac05cfebc73fed5a5ddb1645e23eaf7762638f15))
+
+
+### Bug Fixes
+
+* Lutris desktop entry name typo ([84355e8](https://github.com/PierreBeucher/cloudypad/commit/84355e85b6e18e8811e61faf8580664313548ebc))
+* on start with deletedInstanceServerOnStop, if instance server was still existing, ensure it's started ([9a10c78](https://github.com/PierreBeucher/cloudypad/commit/9a10c78f0e0a10abc656a41e92c09dfbb98ebd0f))
+
+## [0.43.0](https://github.com/PierreBeucher/cloudypad/compare/v0.42.0...v0.43.0) (2026-02-27)
+
+
+### Features
+
+* use a fixed NVIDIA Container Toolkit version ([46bc245](https://github.com/PierreBeucher/cloudypad/commit/46bc245eee22cf020d8446be107f2019d4ee45da))
+
+
+### Bug Fixes
+
+* force NVIDIA Container Toolkit version to 1.17.8-1 to avoid black screen issues with 1.18.x and Container Device Interface ([86c27d6](https://github.com/PierreBeucher/cloudypad/commit/86c27d69706f57cc87201eb589e244e6bd510ded))
+
+## [0.42.0](https://github.com/PierreBeucher/cloudypad/compare/v0.41.0...v0.42.0) (2026-01-27)
+
+
+### Features
+
+* create base image on creation to remove root disk on stop for cost effiency ([7b9cbc2](https://github.com/PierreBeucher/cloudypad/commit/7b9cbc2f9104629f7b21e03462cf9e9182c983e2))
+* data disk snapshot on stop for cost reduction (only Scaleway for now) ([060118d](https://github.com/PierreBeucher/cloudypad/commit/060118d44102e4a293b0d83c30a8071eb79e88c5))
+* flag to keep base image on destroy ([e77fa79](https://github.com/PierreBeucher/cloudypad/commit/e77fa79dc8f170f04b78aaa659d48afda49425ad))
+* temporary workaround for Ansible galaxy: use Git to download collections ([0b94cdb](https://github.com/PierreBeucher/cloudypad/commit/0b94cdb825c0e2991d212640e65da00f72bc484d))
+
+
+### Bug Fixes
+
+* some Linode labels still exceed 50 characters ([37a8bea](https://github.com/PierreBeucher/cloudypad/commit/37a8bea8a110b92fd6db38da1d4376f951c426b5))
+
 ## [0.41.0](https://github.com/PierreBeucher/cloudypad/compare/v0.40.0...v0.41.0) (2025-12-10)
 
 

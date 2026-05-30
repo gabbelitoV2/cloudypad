@@ -10,6 +10,7 @@ import { CreateCliArgs } from './command';
 import { CostAlertOptions } from '../core/provisioner';
 import { CoreConfig } from '../core/config/interface';
 import { StateManagerBuilder } from '../core/state/builders';
+import { generateStrongPassword } from '../tools/password';
 
 const { kebabCase } = lodash
 
@@ -302,19 +303,8 @@ export abstract class AbstractInputPrompter<
             return publicIpType
         }
 
-        const publicIpTypeChoices: {name: PUBLIC_IP_TYPE, value: PUBLIC_IP_TYPE }[] = [{
-            name: PUBLIC_IP_TYPE_STATIC,
-            value: PUBLIC_IP_TYPE_STATIC
-        },{
-            name: PUBLIC_IP_TYPE_DYNAMIC,
-            value: PUBLIC_IP_TYPE_DYNAMIC
-        }]
-
-        return await select({
-            message: 'Use static Elastic IP or dynamic IP? :',
-            choices: publicIpTypeChoices,
-            default: PUBLIC_IP_TYPE_STATIC,
-        })
+        // Always return static IP type by default, dynamic IP is deprecated and will be removed in the future
+        return PUBLIC_IP_TYPE_STATIC
     }
 
     protected async informCloudProviderQuotaWarning(provider: string, helpUrl: string){
@@ -433,28 +423,26 @@ export abstract class AbstractInputPrompter<
     private async promptSunshinePasswordBase64(_sunshinePasswordBase64?: string): Promise<string> {
         if(_sunshinePasswordBase64){
             return _sunshinePasswordBase64
-        } else {
-
-            const sunshinePassword = await password({
-                message: "Enter Sunshine Web UI password:",
-            })
-
-            if(sunshinePassword.length == 0){
-                console.warn("Password cannot be empty.")
-                return this.promptSunshinePasswordBase64()
-            }
-
-            const sunshinePasswordConfirm = await password({
-                message: "Confirm Sunshine Web UI password:",
-            })
-
-            if(sunshinePassword !== sunshinePasswordConfirm){
-                console.warn("Passwords do not match.")
-                return this.promptSunshinePasswordBase64()
-            }
-            
-            return Buffer.from(sunshinePassword).toString('base64')
         }
+
+        const sunshinePassword = await password({
+            message: "Enter Sunshine Web UI password (leave blank to generate one):",
+        })
+
+        if(sunshinePassword.length == 0){
+            return generateStrongPassword()
+        }
+
+        const sunshinePasswordConfirm = await password({
+            message: "Confirm Sunshine Web UI password:",
+        })
+
+        if(sunshinePassword !== sunshinePasswordConfirm){
+            console.warn("Passwords do not match.")
+            return this.promptSunshinePasswordBase64()
+        }
+
+        return Buffer.from(sunshinePassword).toString('base64')
     }
 
     private async promptAutoStop(_autoStopEnable?: boolean, _autostopTimeout?: number): Promise<{ autoStopEnable: boolean, autoStopTimeout?: number }> {

@@ -2,10 +2,11 @@ import * as pulumi from "@pulumi/pulumi"
 import * as random from "@pulumi/random"
 import * as linode from "@pulumi/linode"
 import { LocalWorkspaceOptions, OutputMap } from "@pulumi/pulumi/automation"
-import { InstancePulumiClient } from "../../tools/pulumi/client"
-import { SimplePortDefinition } from "../../core/const"
-import { ShaUtils } from "../../tools/sha-utils"
+import { InstancePulumiClient } from "../../../tools/pulumi/client"
+import { SimplePortDefinition } from "../../../core/const"
+import { ShaUtils } from "../../../tools/sha-utils"
 import * as path from "path"
+import { linodeLabel } from "./utils"
 
 /**
  * Maximum length of a label for a Linode instance or volume.
@@ -78,6 +79,11 @@ interface LinodeInstanceArgs {
          */
         record?: string
     }
+
+    /**
+     * Additional tags to apply to resources
+     */
+    additionalTags: pulumi.Input<string[]>
 }
 
 /**
@@ -115,18 +121,30 @@ class CloudyPadLinodeInstance extends pulumi.ComponentResource {
 
     public readonly rootDiskId: pulumi.Output<string | undefined>
     public readonly dataDiskId: pulumi.Output<string>
+    public readonly dataDiskHostPath: pulumi.Output<string>
 
     private readonly instanceServer: linode.Instance | undefined
     
     constructor(name: string, args: LinodeInstanceArgs, opts?: pulumi.ComponentResourceOptions) {
         super("crafteo:cloudypad:linode:instance", name, {}, opts)
 
+        const globalTags = pulumi.output(args.additionalTags).apply((tags) => {
+
+            // tags are like labels on Linode, so we need to ensure they are valid
+            const safeTags = tags.map(t => linodeLabel(t))
+            const safeName = linodeLabel(name)
+            return [
+                safeName,
+                ...safeTags
+            ]
+        })
+
         let instanceServer: linode.Instance | undefined
         let desiredInstanceConfig: pulumi.Output<linode.InstanceConfig> | undefined
 
         // label affacted to data disk volume
         // set early as it's required on instance creation/update to discrimiate with root disk
-        const dataDiskLabel = this.linodeLabel(name, "-vol")
+        const dataDiskLabel = linodeLabel(name, "-vol")
 
         if(args.noInstanceServer) {
             this.instanceServerName = pulumi.output(undefined)
@@ -146,7 +164,7 @@ class CloudyPadLinodeInstance extends pulumi.ComponentResource {
             // causes wrong instance config to be used because of a bug in Linode provider
             // better re-ecreate instance every time rather than reporting success with a broken instance config
             instanceServer = new linode.Instance(`${name}-instance`, {
-                label: this.linodeLabel(name, "-server"),
+                label: linodeLabel(name, "-server"),
                 image: args.imageId || "linode/ubuntu22.04",
                 region: args.region,
                 type: args.instanceType,
@@ -159,9 +177,14 @@ class CloudyPadLinodeInstance extends pulumi.ComponentResource {
                 // as instance is expected to reboot during configuration
                 // but should be false during normal usage to avoid instance being rebooted if stopped by auto-stop after idleness
                 watchdogEnabled: args.watchdogEnabled ?? false,
+                tags: globalTags,
             }, { 
                 parent: this,
                 ignoreChanges: ["booted"], // ignored booted changes as it will always be booted with InstanceConfig
+
+                // Must delete existing instance to avoid instance having the same tags
+                // as Linoe won't allow it
+                deleteBeforeReplace: true, 
             })
 
 
@@ -206,10 +229,11 @@ class CloudyPadLinodeInstance extends pulumi.ComponentResource {
         // create data disk
         // if possible attach it to instance server, otherwise leave linodeId undefined
         const dataVolume = new linode.Volume(`${name}-data-disk`, {
-            label: this.linodeLabel(name, "-vol"),
+            label: linodeLabel(name, "-vol"),
             size: args.dataVolume.sizeGb,
             region: args.region,
             linodeId: instanceServer ? instanceServer.id.apply((id: string) => Number(id)) : undefined,
+            tags: globalTags,
         }, { 
             parent: this,
         })
@@ -259,7 +283,7 @@ class CloudyPadLinodeInstance extends pulumi.ComponentResource {
                 // Clone other configs from default instanceConfig
                 return new linode.InstanceConfig(`${name}-instance-config`, {
                     linodeId: instanceServerIdInt,
-                    label: this.linodeLabel(name, "-config"),
+                    label: linodeLabel(name, "-config"),
                     kernel: "linode/grub2", 
                     booted: true,
                     // need to use devices from default config
@@ -296,7 +320,7 @@ class CloudyPadLinodeInstance extends pulumi.ComponentResource {
             if(args.dns.record) {
                 recordName = args.dns.record
             } else {
-                const recordNameBase = this.linodeLabel(name)
+                const recordNameBase = linodeLabel(name)
 
                 // generate a random record name desired record name is not provided
                 let recordNameSuffix = new random.RandomString("record-name", {
@@ -339,7 +363,7 @@ class CloudyPadLinodeInstance extends pulumi.ComponentResource {
         }
 
         const firewall = new linode.Firewall(`${name}-firewall`, {
-            label: this.linodeLabel(name, "-fw"),
+            label: linodeLabel(name, "-fw"),
             inbounds: args.networkSecurityGroupPorts.map(port => ({
                 label: `allow-${port.protocol.toLowerCase()}-${port.port}`,
                 action: "ACCEPT",
@@ -356,21 +380,8 @@ class CloudyPadLinodeInstance extends pulumi.ComponentResource {
         })
 
         // path is like /dev/disk/by-id/scsi-0Linode_Volume_my-instance-vol
-        // we want to extract the volume name
-        this.dataDiskId = dataVolume.filesystemPath.apply(p => path.basename(p))
-    }
-
-    /**
-     * Create a valid Linode label (no more than LINODE_LABEL_MAX_LENGTH length)
-     * @param name desired label name, trimmed with hash if too long
-     * @param suffix desired suffix, always appear
-     */
-    private linodeLabel(name: string, suffix?: string){
-        return ShaUtils.createUniqueNameWith({ 
-            baseName: name, 
-            maxLength: LINODE_LABEL_MAX_LENGTH, 
-            suffix: suffix
-        })
+        this.dataDiskHostPath = dataVolume.filesystemPath.apply(p => path.basename(p))
+        this.dataDiskId = dataVolume.id
     }
 }
 
@@ -387,6 +398,7 @@ async function linodePulumiProgram(): Promise<Record<string, any> | void> {
     const noInstanceServer = config.getBoolean("noInstanceServer")
     const watchdogEnabled = config.getBoolean("watchdogEnabled")
     const dns = config.getObject<LinodeInstanceArgs["dns"]>("dns")
+    const additionalTags = config.getObject<string[]>("additionalTags") || []
 
     const stackName = pulumi.getStack()
 
@@ -402,24 +414,27 @@ async function linodePulumiProgram(): Promise<Record<string, any> | void> {
         imageId: imageId,
         noInstanceServer: noInstanceServer,
         watchdogEnabled: watchdogEnabled,
-        dns: dns
+        dns: dns,
+        additionalTags: additionalTags,
     })
 
     return pulumi.all([
         instance.instanceServerName, 
         instance.instanceHostname, 
         instance.instanceServerId, 
-        instance.dataDiskId, 
+        instance.dataDiskId,
+        instance.dataDiskHostPath,
         instance.instanceServerURN,
         instance.publicIp,
         instance.rootDiskId
-    ]).apply(([instanceServerName, instanceHostname, instanceServerId, dataDiskId, instanceServerUrn, publicIp, rootDiskId]) => {
+    ]).apply(([instanceServerName, instanceHostname, instanceServerId, dataDiskId, dataDiskHostPath, instanceServerUrn, publicIp, rootDiskId]) => {
         const result: LinodePulumiOutput = {
             instanceServerName: instanceServerName,
             instanceHostname: instanceHostname,
             instanceIPv4: publicIp,
             instanceServerId: instanceServerId,
             dataDiskId: dataDiskId,
+            dataDiskHostPath: dataDiskHostPath,
             instanceServerUrn: instanceServerUrn,
             rootDiskId: rootDiskId
         }
@@ -428,6 +443,7 @@ async function linodePulumiProgram(): Promise<Record<string, any> | void> {
 }
 
 export interface PulumiStackConfigLinode {
+    instanceName: string
     region: string
     instanceType: string
     apiToken: string
@@ -446,6 +462,7 @@ export interface PulumiStackConfigLinode {
         domainName: string
         record?: string
     }
+    additionalLabels?: string[]
 }
 
 /**
@@ -482,6 +499,11 @@ export interface LinodePulumiOutput {
     dataDiskId: string
 
     /**
+     * Host path of the data disk
+     */
+    dataDiskHostPath: string
+
+    /**
      * ID of instance root disk
      */
     rootDiskId?: string
@@ -512,6 +534,10 @@ export class LinodePulumiClient extends InstancePulumiClient<PulumiStackConfigLi
         await stack.setConfig("linode:token", { value: config.apiToken, secret: true })
         await stack.setConfig("region", { value: config.region })
         
+        // Always add the instance name tag along with given labels
+        const additionalTags = [`instance:${config.instanceName}`, ...(config.additionalLabels || [])]
+        await stack.setConfig("additionalTags", { value: JSON.stringify(additionalTags)})
+        
         if(config.noInstanceServer) await stack.setConfig("noInstanceServer", { value: config.noInstanceServer.toString()})
         await stack.setConfig("instanceType", { value: config.instanceType})
 
@@ -536,7 +562,8 @@ export class LinodePulumiClient extends InstancePulumiClient<PulumiStackConfigLi
             instanceHostname: outputs["instanceHostname"].value as string | undefined,
             instanceServerId: outputs["instanceServerId"]?.value as string | undefined,
             instanceServerUrn: outputs["instanceServerUrn"]?.value as string | undefined,
-            dataDiskId: outputs["dataDiskId"].value as string,
+            dataDiskId: outputs["dataDiskId"].value as string,  
+            dataDiskHostPath: outputs["dataDiskHostPath"].value as string,
             rootDiskId: outputs["rootDiskId"]?.value as string | undefined
         }   
     }

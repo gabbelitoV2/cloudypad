@@ -17,7 +17,7 @@ import { CloudypadClient } from '../core/client';
 import { CoreConfig } from '../core/config/interface';
 import { InstanceManagerBuilder } from '../core/manager-builder';
 import { InstanceManager } from '../core/manager';
-import { CLI_OPTION_RETRIES, CLI_OPTION_RETRY_DELAY, CLI_OPTION_FORCE_PULUMI_CANCEL } from './command';
+import { CLI_OPTION_RETRIES, CLI_OPTION_RETRY_DELAY, CLI_OPTION_FORCE_PULUMI_CANCEL, CLI_OPTION_ANSIBLE_ADDITIONAL_ARGS, CLI_OPTION_ANSIBLE_ARGS_OVERRIDE } from './command';
 
 const logger = getLogger("program")
 
@@ -146,6 +146,7 @@ export function buildProgram(){
         .addOption(CLI_OPTION_RETRIES)
         .addOption(CLI_OPTION_RETRY_DELAY)
         .addOption(CLI_OPTION_FORCE_PULUMI_CANCEL)
+        .addOption(CLI_OPTION_ANSIBLE_ARGS_OVERRIDE)
         .action(async (name, opts) => {
             try {
                 analyticsClient.sendEvent(RUN_COMMAND_START)
@@ -157,7 +158,8 @@ export function buildProgram(){
                     waitTimeoutSeconds: opts.timeout, 
                     retries: opts.retries, 
                     retryDelaySeconds: opts.retryDelay,
-                    pulumiCancel: opts.forcePulumiCancel
+                    pulumiCancel: opts.forcePulumiCancel,
+                    ansibleArgsOverride: opts.ansibleArgsOverride ? [opts.ansibleArgsOverride] : undefined
                 })
     
                 if(opts.wait){
@@ -184,6 +186,9 @@ export function buildProgram(){
                 analyticsClient.sendEvent(RUN_COMMAND_STOP)
 
                 console.info(`Stopping instance ${name}...`)
+                // need 2 spaces otherwise might not show properly  
+                console.info(`ℹ️  Stopping may take some time to complete while your instance's data is put to sleep for better cost efficiency (data disk snapshot may be long).`)
+
                 const m = await getInstanceManager(name)
                 await m.stop({ 
                     wait: opts.wait, 
@@ -291,6 +296,7 @@ export function buildProgram(){
         .addOption(CLI_OPTION_RETRIES)
         .addOption(CLI_OPTION_RETRY_DELAY)
         .addOption(CLI_OPTION_FORCE_PULUMI_CANCEL)
+        .addOption(CLI_OPTION_ANSIBLE_ARGS_OVERRIDE)
         .action(async (name, opts) => {
             try {
                 analyticsClient.sendEvent(RUN_COMMAND_CONFIGURE)
@@ -299,7 +305,8 @@ export function buildProgram(){
                 await m.configure({ 
                     retries: opts.retries, 
                     retryDelaySeconds: opts.retryDelay,
-                    pulumiCancel: opts.forcePulumiCancel
+                    pulumiCancel: opts.forcePulumiCancel,
+                    ansibleArgsOverride: opts.ansibleArgsOverride ? [opts.ansibleArgsOverride] : undefined
                 })
     
                 console.info("")
@@ -316,6 +323,7 @@ export function buildProgram(){
         .addOption(CLI_OPTION_RETRIES)
         .addOption(CLI_OPTION_RETRY_DELAY)
         .addOption(CLI_OPTION_FORCE_PULUMI_CANCEL)
+        .addOption(CLI_OPTION_ANSIBLE_ARGS_OVERRIDE)
         .action(async (name, opts) => {
 
             const manager = await getInstanceManager(name)
@@ -332,7 +340,8 @@ export function buildProgram(){
             await manager.deploy({ 
                 retries: opts.retries, 
                 retryDelaySeconds: opts.retryDelay,
-                pulumiCancel: opts.forcePulumiCancel
+                pulumiCancel: opts.forcePulumiCancel,
+                ansibleArgsOverride: opts.ansibleArgsOverride ? [opts.ansibleArgsOverride] : undefined
             })
         })
 

@@ -1,21 +1,56 @@
 import * as scw from "@pulumiverse/scaleway"
 import * as pulumi from "@pulumi/pulumi"
-import { InstancePulumiClient } from "../../tools/pulumi/client"
+import { InstancePulumiClient } from "../../../tools/pulumi/client"
 import { LocalWorkspaceOptions, OutputMap } from "@pulumi/pulumi/automation"
-import { SimplePortDefinition } from "../../core/const"
+import { SimplePortDefinition } from "../../../core/const"
+
+/** 
+ * TEST-NET-1 (RFC 5737); not routed
+ * used when instance server is absent so DNS can keep a stable FQDN without a real public IP. 
+ */
+const DUMMY_UNUSED_IPV4 = "192.0.2.1"
 
 interface ScalewayInstanceArgs {
     networkSecurityGroupRules?: pulumi.Input<pulumi.Input<scw.types.input.InstanceSecurityGroupInboundRule>[]>
     publicKeyContent: pulumi.Input<string>
-    tags?: pulumi.Input<string[]>
     instanceType: pulumi.Input<string>
     imageId?: pulumi.Input<string>
-    noInstanceServer?: pulumi.Input<boolean>
+    instanceServerState?: "present" | "absent"
     rootVolume: {
         sizeGb: pulumi.Input<number>
     },
     dataDisk?: {
+        /**
+         * Desired state of the data disk.
+         */
+        state: "present" | "absent"
+
+        /**
+         * Size of the data disk in GB.
+         */
         sizeGb: pulumi.Input<number>
+
+        /**
+         * If set, create the data disk from this snapshot instead of creating a new empty disk.
+         * Used when restoring from a snapshot on instance start.
+         */
+        snapshotId?: pulumi.Input<string>
+    }
+    additionalTags: pulumi.Input<string[]>
+
+    /**
+     * Optional DNS A record under a Scaleway DNS zone pointing at the effective public address.
+     */
+    dns?: {
+        /** 
+         * DNS zone (domain) name, e.g. example.com 
+         */
+        domainName: string
+        
+        /** 
+         * Record label within the zone; if omitted, an apex (root) A record is created for the zone itself 
+         */
+        record?: string
     }
 }
 
@@ -27,13 +62,15 @@ class CloudyPadScalewayInstance extends pulumi.ComponentResource {
     public readonly dataDiskId: pulumi.Output<string | null>
     public readonly rootDiskId: pulumi.Output<string | null>
     public readonly instanceServerURN: pulumi.Output<string | null>
+    public readonly instanceHostname: pulumi.Output<string>
 
     constructor(name: string, args: ScalewayInstanceArgs, opts?: pulumi.ComponentResourceOptions) {
         super("crafteo:cloudypad:scaleway:vm", name, args, opts)
 
-        const globalTags = [
-            name
-        ]
+        const globalTags = pulumi.all([args.additionalTags]).apply(([tags]) => [
+            name,
+            ...tags
+        ])
 
         const commonPulumiOpts = {
             parent: this
@@ -56,30 +93,40 @@ class CloudyPadScalewayInstance extends pulumi.ComponentResource {
             tags: globalTags,
         }, commonPulumiOpts)
 
-        const publicIp = new scw.instance.Ip(`${name}-public-ip`, {
-            tags: globalTags
-        }, commonPulumiOpts)
-
-        this.publicIp = publicIp.address
 
         let dataDisk: scw.block.Volume | undefined
-        if(args.dataDisk){
+        // Create data disk if requested and not explicitly disabled (noDataDisk)
+        if(args.dataDisk && args.dataDisk.state !== "absent"){
+            // If snapshotId is provided, create volume from snapshot
+            // Otherwise create a new empty volume
             dataDisk = new scw.block.Volume(`${name}-data`, {
                 name: `${name}-data`,
                 sizeInGb: args.dataDisk.sizeGb,
                 iops: 5000,
-                tags: globalTags
+                tags: globalTags,
+                snapshotId: args.dataDisk.snapshotId,
             }, commonPulumiOpts)
 
             dataDisk?.id.apply(id => {
                 pulumi.log.info(`Data disk: ${id}`)
             })
-            this.dataDiskId = dataDisk.id.apply(id => id.split("/").pop() as string)
+            // Store full ID for infrastructure operations (snapshots, etc.)
+            this.dataDiskId = dataDisk.id
         } else {
             this.dataDiskId = pulumi.output(null)
         }
 
-        if(!args.noInstanceServer){
+        // little tweak to always create the same public IP resource in different places 
+        const buildPublicIpResource: () => scw.instance.Ip = () => {
+            return new scw.instance.Ip(`${name}-public-ip`, {
+                tags: globalTags
+            }, commonPulumiOpts)
+        }
+
+        // always create server if state unless specifically set to absent
+        if(args.instanceServerState !== "absent"){
+            const instancePublicIp = buildPublicIpResource()
+
             const server = new scw.instance.Server(`${name}-server`, {
                 name: name,
                 type: args.instanceType,
@@ -91,7 +138,7 @@ class CloudyPadScalewayInstance extends pulumi.ComponentResource {
                 tags: globalTags,
                 securityGroupId: securityGroup.id,
                 image: args.imageId ?? "ubuntu_jammy_gpu_os_12",
-                ipIds: [publicIp.id],
+                ipIds: [instancePublicIp.id],
             }, {
                 ...commonPulumiOpts,
                 ignoreChanges: ["rootVolume.volumeType"], // avoid recreation of existing instances using legacy block volume type
@@ -99,6 +146,7 @@ class CloudyPadScalewayInstance extends pulumi.ComponentResource {
             })
 
             this.instanceServerName = server.name
+            this.publicIp = instancePublicIp.address
             
             // server id looks like this: "fr-par-2/4becedc8-51e9-4320-a45c-20f0f57033fa"
             // we want to extract only the ID
@@ -107,10 +155,41 @@ class CloudyPadScalewayInstance extends pulumi.ComponentResource {
             this.instanceServerURN = server.urn
             this.rootDiskId = server.rootVolume.volumeId.apply(id => id.split("/").pop() as string)
         } else {
+            // instance server is absent, set output accordingly
             this.instanceServerName = pulumi.output(null)
             this.instanceServerId = pulumi.output(null)
             this.instanceServerURN = pulumi.output(null)
             this.rootDiskId = pulumi.output(null)
+
+            // When server is absent, an actual public IP address is needed when no DNS config exists:
+            // - with DNS config, we can remove the public IP address as DNS record will keep the hostname stable.
+            //   Wiht short TTL, DNS record will be updated quickly on instance start with fresh public IP.
+            // - without DNS config, we need to keep the public IP address to keep a stable hostname 
+            //   (otherwise we'd lose the IP and user would have to pair again with a new IP)
+            if(args.dns){
+                this.publicIp = pulumi.output(DUMMY_UNUSED_IPV4)
+            } else {
+                const publicIpResource = buildPublicIpResource()
+                this.publicIp = publicIpResource.address
+            }
+        }
+
+        if (args.dns) {
+            // Use given record name if provided; if omitted, use empty string to create an apex (root) A record
+            // e.g. domainName="foo.example.com" with no record → A record at foo.example.com itself
+            const recordName: pulumi.Input<string> = args.dns.record ?? ""
+
+            const dnsRecord = new scw.domain.Record(`${name}-dns-record`, {
+                dnsZone: args.dns.domainName,
+                name: recordName,
+                type: "A",
+                data: this.publicIp,
+                ttl: 60, // minimum TTL allowed by Scaleway; kept short so DNS updates propagate quickly on instance start
+            }, commonPulumiOpts)
+
+            this.instanceHostname = dnsRecord.fqdn
+        } else {
+            this.instanceHostname = this.publicIp
         }
     }
 }
@@ -124,7 +203,9 @@ async function scalewayPulumiProgram(): Promise<Record<string, any> | void> {
     const securityGroupPorts = config.requireObject<SimplePortDefinition[]>("securityGroupPorts")
     const dataDisk = config.getObject<ScalewayInstanceArgs["dataDisk"]>("dataDisk")
     const imageId = config.get("imageId")
-    const noInstanceServer = config.getBoolean("noInstanceServer")
+    const instanceServerState = config.get("instanceServerState") as "present" | "absent" | undefined
+    const additionalTags = config.getObject<string[]>("additionalTags") || []
+    const dns = config.getObject<ScalewayInstanceArgs["dns"]>("dns")
 
     const stackName = pulumi.getStack()
 
@@ -142,7 +223,9 @@ async function scalewayPulumiProgram(): Promise<Record<string, any> | void> {
         },
         dataDisk: dataDisk,
         imageId: imageId,
-        noInstanceServer: noInstanceServer
+        instanceServerState: instanceServerState,
+        additionalTags: additionalTags,
+        dns: dns,
     })
 
     return pulumi.all([
@@ -151,26 +234,37 @@ async function scalewayPulumiProgram(): Promise<Record<string, any> | void> {
         instance.instanceServerId, 
         instance.dataDiskId, 
         instance.rootDiskId, 
-        instance.instanceServerURN
-    ]).apply(([instanceServerName, publicIp, instanceServerId, dataDiskId, rootDiskId, instanceServerUrn]) => {
+        instance.instanceServerURN,
+        instance.instanceHostname,
+    ]).apply(([
+        instanceServerName, 
+        publicIp, 
+        instanceServerId, 
+        dataDiskId, 
+        rootDiskId, 
+        instanceServerUrn, 
+        instanceHostname
+    ]) => {
         const result: ScalewayPulumiOutput = {
             instanceServerName: instanceServerName,
             publicIp: publicIp,
             instanceServerId: instanceServerId,
             dataDiskId: dataDiskId,
             rootDiskId: rootDiskId,
-            instanceServerUrn: instanceServerUrn
+            instanceServerUrn: instanceServerUrn,
+            instanceHostname: instanceHostname,
         }
         return result
     })
 }
 
 export interface PulumiStackConfigScaleway {
+    instanceName: string
     projectId: string
     region: string
     zone: string
     instanceType: string
-    noInstanceServer?: boolean
+    instanceServerState?: "present" | "absent"
     imageId?: string
     rootDisk: {
         sizeGb: number
@@ -178,7 +272,13 @@ export interface PulumiStackConfigScaleway {
     publicKeyContent: string
     securityGroupPorts: SimplePortDefinition[]
     dataDisk?: {
+        state: "present" | "absent"
         sizeGb: number
+        snapshotId?: string
+    }
+    dns?: {
+        domainName: string
+        record?: string
     }
 }
 
@@ -196,9 +296,14 @@ export interface ScalewayPulumiOutput {
     instanceServerId: string | null
 
     /**
-     * Public IP address of the instance
+     * Public IP address of the instance (or TEST-NET placeholder when the server is absent and the flexible IP is released)
      */
     publicIp: string
+
+    /**
+     * Hostname for SSH/Moonlight: FQDN when DNS is configured, otherwise the public IP
+     */
+    instanceHostname: string
 
     /**
      * ID of the root OS disk
@@ -239,12 +344,14 @@ export class ScalewayPulumiClient extends InstancePulumiClient<PulumiStackConfig
         await stack.setConfig("scaleway:project_id", { value: config.projectId})
         await stack.setConfig("scaleway:region", { value: config.region})
         await stack.setConfig("scaleway:zone", { value: config.zone})
+        await stack.setConfig("additionalTags", { value: JSON.stringify([`instance:${config.instanceName}`])})
         
-        if(config.noInstanceServer) await stack.setConfig("noInstanceServer", { value: config.noInstanceServer.toString()})
+        if(config.instanceServerState) await stack.setConfig("instanceServerState", { value: config.instanceServerState})
         await stack.setConfig("instanceType", { value: config.instanceType})
 
         if(config.imageId) await stack.setConfig("imageId", { value: config.imageId})
         if(config.dataDisk) await stack.setConfig("dataDisk", { value: JSON.stringify(config.dataDisk)})
+        if(config.dns) await stack.setConfig("dns", { value: JSON.stringify(config.dns)})
 
         await stack.setConfig("rootDiskSizeGB", { value: config.rootDisk.sizeGb.toString()})
         await stack.setConfig("publicKeyContent", { value: config.publicKeyContent})
@@ -265,7 +372,8 @@ export class ScalewayPulumiClient extends InstancePulumiClient<PulumiStackConfig
             instanceServerId: outputs["instanceServerId"]?.value as string,
             rootDiskId: outputs["rootDiskId"]?.value as string,
             instanceServerUrn: outputs["instanceServerUrn"]?.value as string | null,
-            dataDiskId: outputs["dataDiskId"]?.value as string | null
+            dataDiskId: outputs["dataDiskId"]?.value as string | null,
+            instanceHostname: outputs["instanceHostname"]?.value as string,
         }   
     }
 

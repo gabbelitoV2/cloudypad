@@ -11,8 +11,8 @@ if [ -n "$CLOUDYPAD_CLI_LAUNCHER_DEBUG" ]; then
   set -x
 fi
 
-CLOUDYPAD_VERSION=0.41.0
-CLOUDYPAD_IMAGE="${CLOUDYPAD_IMAGE:-"ghcr.io/pierrebeucher/cloudypad:$CLOUDYPAD_VERSION"}"
+CLOUDYPAD_VERSION=0.45.3
+CLOUDYPAD_IMAGE="${CLOUDYPAD_IMAGE:-"ghcr.io/gabbelitov2/cloudypad:$CLOUDYPAD_VERSION"}"
 CLOUDYPAD_TARGET_IMAGE="cloudypad/local-runner:local"
 
 # Hidden command used during installation to setup Docker image locally
@@ -131,6 +131,7 @@ run_cloudypad_docker() {
         # Azure
         "AZURE_LOCATION" "AZURE_SUBSCRIPTION_ID" "AZURE_CLIENT_ID" "AZURE_SECRET" "AZURE_TENANT"
         "ARM_SUBSCRIPTION_ID" "ARM_CLIENT_ID" "ARM_CLIENT_SECRET" "ARM_TENANT_ID"
+        "AZURE_CORE_USE_MSAL_HTTP_CACHE"
 
         # Google
         "GOOGLE_PROJECT" "GOOGLE_CLOUD_PROJECT" "GCLOUD_PROJECT" "CLOUDSDK_CORE_PROJECT" 

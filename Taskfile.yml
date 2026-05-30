@@ -1,9 +1,9 @@
 version: '3'
 
 env:
-  CLOUDYPAD_BUILD_CORE_IMAGE_REGISTRY: "ghcr.io/pierrebeucher/cloudypad"
+  CLOUDYPAD_BUILD_CORE_IMAGE_REGISTRY: "ghcr.io/gabbelitov2/cloudypad"
   CLOUDYPAD_BUILD_CORE_IMAGE_TAG: "local"
-  CLOUDYPAD_BUILD_SUNSHINE_IMAGE_REGISTRY: "ghcr.io/pierrebeucher/cloudypad/sunshine"
+  CLOUDYPAD_BUILD_SUNSHINE_IMAGE_REGISTRY: "ghcr.io/gabbelitov2/cloudypad/sunshine"
   CLOUDYPAD_BUILD_SUNSHINE_IMAGE_TAG: "local"
 
 tasks:
@@ -12,17 +12,30 @@ tasks:
   # Build and test
   #
 
+  # Run unit tests.
+  # By default, all tests are run recursively with "test/unit --recursive",
+  # CLI arguments are passed directly to mocha to allow running specific tests
+  #
+  # Note that by passing CLI arguments you MUST pass "--" (to separate CLI args from task args) 
+  # and a test file like "test/unit" otherwise mocha will not run any tests
+  #
+  # eg. 
+  #   task test-unit -- test/unit --recursive # run all tests
+  #   task test-unit -- test/unit --recursive --grep "should list all quota instance types" # run a single test 
+  #   task test-unit -- test/unit/instance/quota/accessor.spec.ts # run a single test file
   test-unit:
-    cmd: npx mocha --config test/unit/.mocharc.json ./test/unit --recursive
-
-  build-npm:
     cmds:
-    - npm run build
+      - npx mocha --config test/unit/.mocharc.json {{ .CLI_ARGS | default "test/unit --recursive" }}
 
-  build-npm-tar:
+
+  build-pnpm:
     cmds:
-    - task: build-npm
-    - (cd dist && npm pack)
+    - pnpm run build
+
+  build-pnpm-tar:
+    cmds:
+    - task: build-pnpm
+    - (cd dist && pnpm pack)
   
   test-compile:
     cmds:
@@ -92,14 +105,20 @@ tasks:
     - task: test-integ-provider-linode
 
   # Setup containers for integration tests
-  test-integ-containers-setup:
+  # Cleanup and start containers
+  test-integ-setup:
     cmds:
+    - task: test-integ-cleanup
     - docker compose -f test/integ/docker-compose.yml up -d
+
+  test-integ-cleanup:
+    cmds:
+    - docker compose -f test/integ/docker-compose.yml down -v
 
   # Run side-effects tests
   test-integ-s3-side-effects:
     cmds:
-    - task: test-integ-containers-setup
+    - task: test-integ-setup
     - npx mocha --config test/integ/.mocharc.json ./test/integ/stable/core/state/side-effects/s3.spec.ts
 
   test-integ-provider-aws:
@@ -134,9 +153,6 @@ tasks:
     cmds:
     - npx mocha --config test/integ/.mocharc.json ./test/integ/stable/core/providers/linode/client.spec.ts
     - npx mocha --config test/integ/.mocharc.json ./test/integ/stable/core/providers/linode/lifecycle.spec.ts 
-
-  test-integ-scaleway-lifecycle-with-server-deletion:
-    - npx mocha --config test/integ/.mocharc.json ./test/integ/scaleway/lifecycle-with-server-deletion.spec.ts 
 
   # Ensure analytics key are matching in various places in code 
   test-analytics-key-match:
@@ -173,7 +189,8 @@ tasks:
       # Wait for mdbook serve to be ready
       timeout 30 bash -c 'until curl -s http://localhost:3000 > /dev/null; do sleep 1; done'
 
-      docker run --network host --rm raviqqe/muffet http://localhost:3000 \
+      docker run --network host --rm raviqqe/muffet@sha256:76b5dd90b589470abd8b93c08e115016d098104ca7d819ff077d5894c501bebc \
+        http://localhost:3000 \
         -b 8192 \
         -e 'https://localhost:47990' \
         -e 'https://repo.steampowered.com' \
@@ -266,6 +283,7 @@ tasks:
   # Push currently built core container image as "dev" tag
   build-core-container-push-current-as-dev:
     cmds:
+    - task: build-core-container-local
     - >-
       docker tag 
       $CLOUDYPAD_BUILD_CORE_IMAGE_REGISTRY:$CLOUDYPAD_BUILD_CORE_IMAGE_TAG 
@@ -329,6 +347,7 @@ tasks:
   # Push currently built Sunshine image as "dev" tag
   build-sunshine-container-push-current-as-dev:
     cmds:
+    - task: build-sunshine-container-local
     - >-
       docker tag 
       $CLOUDYPAD_BUILD_SUNSHINE_IMAGE_REGISTRY:$CLOUDYPAD_BUILD_SUNSHINE_IMAGE_TAG 

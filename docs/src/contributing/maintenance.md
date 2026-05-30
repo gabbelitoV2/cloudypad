@@ -34,13 +34,16 @@ First:
 - [ ] Also bump version to latest stable if possible
 
 Then:
-- [ ] Node dependencies `npm update`
+- [ ] Node dependencies `pnpm update`
 - [ ] NVIDIA Display driver version 
   - Take latest Display Production Linux x86_64 version at [NVIDIA Unix Driver archive page](https://www.nvidia.com/en-us/drivers/unix/)
   - Update in `ansible/roles/nvidia-driver/defaults/main.yml` `nvidia_driver_display_dotrun_install_version`
 - [ ] NVIDIA Datacenter driver version 
   - Take latest Datacenter Linux x86_64 version at [NVIDIA Unix Driver archive page](https://developer.nvidia.com/datacenter-driver-archive)
   - Update in `ansible/roles/nvidia-driver/defaults/main.yml` `nvidia_driver_datacenter_dotrun_install_version`
+- [ ] NVIDIA Container Toolkit version
+  - Check available versions on [APT package](https://nvidia.github.io/libnvidia-container/stable/deb/amd64/Packages)
+  - Update in `ansible/roles/nvidia-driver/defaults/main.yml` `nvidia_container_toolkit_version`
 - [ ] Wolf version and config
   - [ ] Run `hack/update-wolf-images.sh` to update default images in Ansible role
   - [ ] Update Wolf config template in `ansible/roles/wolf/templates/wolf-config.toml` using default config
@@ -70,6 +73,8 @@ Then:
   - [ ] Base image version `FROM` - See available tags from [Docker Hub](https://hub.docker.com/_/ubuntu). Make sure to use the imaghe SHA for reproducibility.
   - [ ] Steam version `CLOUDYPAD_STEAM_VERSION` - see stable version at [Steam archive](https://repo.steampowered.com/steam/archive/stable)
   - [ ] Update `SUNSHINE_VERSION` with [latest Sunshine release](https://github.com/LizardByte/Sunshine/releases)
+    - Prefer the Latest release
+    - Do NOT use Release Candidate or Pre-release, make sure to use actual release. Pre-release and RC may be removed from GitHub later, we need a release that will be kept available to ensure reproducibility of our build.
   - [ ] Update `LUTRIS_VERSION` with [latest Lutris release](https://github.com/lutris/lutris/releases)
   - [ ] Update `HEROIC_VERSION` with [latest Heroic Games Launcher version](https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases)
   - [ ] Update `CLOUDYPAD_HEROIC_DEFAULT_GEPROTON_VERSION` with [latest GE-Proton version](https://github.com/GloriousEggroll/proton-ge-custom/releases)
@@ -78,3 +83,4 @@ Then:
   - [ ] Node version - see [Docker Hub](https://hub.docker.com/_/node)
   - [ ] Ansible version installed by pip - See [Ansible PyPI page](https://pypi.org/project/ansible/)
 
+Last update and dependency bumps: 2026-02-18

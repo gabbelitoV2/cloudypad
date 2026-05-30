@@ -2,16 +2,16 @@ import { CommonInstanceInput, InstanceStateV1 } from "../../src/core/state/state
 import path from "path"
 import fs, { mkdtempSync } from "fs"
 import yaml from 'yaml'
-import { AwsPulumiOutput } from "../../src/providers/aws/pulumi";
-import { AzurePulumiOutput } from "../../src/providers/azure/pulumi";
-import { GcpPulumiOutput } from "../../src/providers/gcp/pulumi";
+import { AwsPulumiOutput } from "../../src/providers/aws/pulumi/main";
+import { AzurePulumiOutput } from "../../src/providers/azure/pulumi/main";
+import { GcpPulumiOutput } from "../../src/providers/gcp/pulumi/main";
 import { PaperspaceMachine } from "../../src/providers/paperspace/client/client";
 import { PUBLIC_IP_TYPE_STATIC } from "../../src/core/const";
 import { tmpdir } from "os";
 import { AnonymousStateParser } from "../../src/core/state/parser";
 import { STREAMING_SERVER_SUNSHINE } from '../../src/cli/prompter';
 import { CreateCliArgs } from "../../src/cli/command";
-import { ScalewayPulumiOutput } from "../../src/providers/scaleway/pulumi";
+import { ScalewayPulumiOutput } from "../../src/providers/scaleway/pulumi/main";
 import { CloudypadClient } from "../../src";
 import { AwsInstanceStateV1 } from "../../src/providers/aws/state";
 import { PartialDeep } from "type-fest";
@@ -111,6 +111,7 @@ export const DUMMY_GCP_PULUMI_OUTPUT: GcpPulumiOutput = { instanceName: "dummy-g
 export const DUMMY_SCALEWAY_PULUMI_OUTPUT: ScalewayPulumiOutput = { 
     instanceServerName: "dummy-scw", 
     publicIp: "127.0.0.1", 
+    instanceHostname: "scaleway.example.com",
     instanceServerId: "server-123456789",
     rootDiskId: "disk-123456789",
     dataDiskId: null,

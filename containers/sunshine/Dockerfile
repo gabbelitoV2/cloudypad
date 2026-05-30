@@ -6,33 +6,34 @@ WORKDIR /app
 # https://github.com/LizardByte/Sunshine/releases
 FROM download-base AS download-sunshine
 ARG SUNSHINE_VERSION=2025.924.154138
-RUN curl -L -o /app/sunshine.deb "https://github.com/LizardByte/Sunshine/releases/download/v${SUNSHINE_VERSION}/sunshine-ubuntu-24.04-amd64.deb"
+RUN curl -fL -o /app/sunshine.deb "https://github.com/LizardByte/Sunshine/releases/download/v${SUNSHINE_VERSION}/sunshine-ubuntu-24.04-amd64.deb"
 
 # Steam
 # https://repo.steampowered.com/steam/archive/stable/
 FROM download-base AS download-steam
 ARG STEAM_VERSION="1.0.0.81"
-RUN curl -o /app/steam-libs-amd64.deb "https://repo.steampowered.com/steam/archive/stable/steam-libs-amd64_${STEAM_VERSION}_amd64.deb"
-RUN curl -o /app/steam-libs-i386.deb "https://repo.steampowered.com/steam/archive/stable/steam-libs-i386_${STEAM_VERSION}_i386.deb"
-RUN curl -o /app/steam.deb "https://repo.steampowered.com/steam/archive/stable/steam-launcher_${STEAM_VERSION}_all.deb"
+RUN curl -f -o /app/steam-libs-amd64.deb "https://repo.steampowered.com/steam/archive/stable/steam-libs-amd64_${STEAM_VERSION}_amd64.deb"
+RUN curl -f -o /app/steam-libs-i386.deb "https://repo.steampowered.com/steam/archive/stable/steam-libs-i386_${STEAM_VERSION}_i386.deb"
+RUN curl -f -o /app/steam.deb "https://repo.steampowered.com/steam/archive/stable/steam-launcher_${STEAM_VERSION}_all.deb"
 
 # Lutris
 # https://github.com/lutris/lutris/releases
 FROM download-base AS download-lutris
-ARG LUTRIS_VERSION="0.5.18"
-RUN curl -L -o /app/lutris.deb "https://github.com/lutris/lutris/releases/download/v${LUTRIS_VERSION}/lutris_${LUTRIS_VERSION}_all.deb"
+ARG LUTRIS_VERSION="0.5.20"
+RUN curl -fL -o /app/lutris.deb "https://github.com/lutris/lutris/releases/download/v${LUTRIS_VERSION}/lutris_${LUTRIS_VERSION}_all.deb"
 
 # Heroic
 # https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases
 FROM download-base AS download-heroic
-ARG HEROIC_VERSION="2.18.1"
-RUN curl -L -o /app/heroic.deb "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v${HEROIC_VERSION}/Heroic-${HEROIC_VERSION}-linux-amd64.deb"
+ARG HEROIC_VERSION="2.19.1"
+
+RUN curl -fL -o /app/heroic.deb "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v${HEROIC_VERSION}/Heroic-${HEROIC_VERSION}-linux-amd64.deb"
 
 # 
 # Sunshine image based on Ubuntu 24.04
 # with desktop environment, game launchers and dependencies
 #
-FROM ubuntu:noble-20250925@sha256:728785b59223d755e3e5c5af178fab1be7031f3522c5ccd7a0b32b80d8248123
+FROM ubuntu:noble-20260210.1@sha256:98ff7968124952e719a8a69bb3cccdd217f5fe758108ac4f21ad22e1df44d237
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -83,6 +84,7 @@ apt install -y \
     xterm \
     xz-utils \
     zenity \
+    jq \
     bubblewrap \
     software-properties-common \
     nano \
@@ -160,6 +162,7 @@ Pin-Priority: -1" | tee /etc/apt/preferences.d/mozilla-firefox
 apt update
 apt install -y \
     xfce4 \
+    xfce4-screenshooter \
     sudo \
     locales \
     firefox
@@ -178,7 +181,6 @@ RUN locale-gen en_US.UTF-8 && \
 RUN --mount=type=cache,target=/var/cache --mount=type=tmpfs,target=/var/log --mount=type=bind,from=download-sunshine,source=/app,target=/app <<_SUNSHINE
 
 set -e
-
 apt update
 apt install -y /app/sunshine.deb
 
@@ -226,7 +228,7 @@ apt install -y /app/heroic.deb
 _HEROIC
 
 # GE-Proton version that will be installed and configured for Heroic by default
-ENV CLOUDYPAD_HEROIC_DEFAULT_GEPROTON_VERSION="GE-Proton10-17"
+ENV CLOUDYPAD_HEROIC_DEFAULT_GEPROTON_VERSION="GE-Proton10-32"
 
 # 
 # Global environment variables
@@ -281,6 +283,9 @@ HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
 
 # Allow user "cloudy" to stop container
 RUN echo "cloudy ALL=(ALL) NOPASSWD: ${CLOUDYPAD_BIN_DIR}/stop-supervisord.sh" > /etc/sudoers.d/cloudy-stop-container
+
+# Allow user "cloudy" to install apps without password (for App Installer)
+RUN echo "cloudy ALL=(ALL) NOPASSWD: /usr/bin/apt-get, /usr/bin/apt, /usr/bin/install, /usr/bin/ln, /usr/bin/mkdir" > /etc/sudoers.d/cloudy-app-install
 
 # Contain various Cloudy Pad scripts, add to PATH for easier use
 ENV PATH=$PATH:/cloudy/bin
