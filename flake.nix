@@ -9,7 +9,7 @@
     flake-utils.lib.eachDefaultSystem (system:
       let  
         pkgs = import nixpkgs { system = system; config.allowUnfree = true; };
-        cloudypadVersion = "0.45.3";
+        cloudypadVersion = "0.46.0";
       in {
         packages = rec {
           default = cloudypad;
@@ -19,7 +19,7 @@
 
             src = pkgs.fetchurl {
               url = "https://raw.githubusercontent.com/gabbelitoV2/cloudypad/v${cloudypadVersion}/cloudypad.sh";
-              hash = "sha256:1rs6jvx8k4l5jshniw672nf9c0475wjc17xfwasv49d55yl6922f";
+              hash = "sha256:04amb4mrs7prly0r33nah9685alaznw13jxp742ll3665fyrbxcv";
             };
 
             phases = [ "installPhase" ];
