@@ -58,7 +58,9 @@ create_push_release_branch() {
   if [ "$CLOUDYPAD_RELEASE_DRY_RUN" = true ]; then
     echo "Dry run enabled: Skipping git push."
   else
-    git push
+    # Use -u to set upstream tracking so subsequent `git pull` works
+    # (older git in the nix dev shell does not honor push.autoSetupRemote)
+    git push -u origin "$release_branch"
   fi
 }
 
@@ -113,13 +115,17 @@ merge_release_branch_in_master() {
     return
   fi
 
+  # This fork publishes images locally (see FORK.md / hack/fork-publish-images.sh) instead of
+  # via the upstream self-hosted release CI, so the CI wait is skipped by default on this fork.
+  CLOUDYPAD_RELEASE_SKIP_CI_WAIT=${CLOUDYPAD_RELEASE_SKIP_CI_WAIT:-true}
+
   echo "Waiting for release tag CI jobs (Docker image build) to finish on tag $release_tag..."
-  
+
   timeout=3600  # Set timeout to 60 minutes (3600 seconds)
   start_time=$(date +%s)
   release_jobs_success=false
 
-  while true; do
+  while [ "$CLOUDYPAD_RELEASE_SKIP_CI_WAIT" != true ]; do
     current_time=$(date +%s)
     elapsed_time=$((current_time - start_time))
 
@@ -150,7 +156,7 @@ merge_release_branch_in_master() {
     fi
   done
   
-  if [ "$release_jobs_success" = true ]; then
+  if [ "$CLOUDYPAD_RELEASE_SKIP_CI_WAIT" = true ] || [ "$release_jobs_success" = true ]; then
     echo "Merging release branch $release_branch in master..."
 
     gh pr create \
